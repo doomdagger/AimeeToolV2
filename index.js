@@ -324,13 +324,19 @@ function displayProductCards(products, containerId, isHot) {
       .join('');
 
     card.innerHTML = `
-      <img src="${product.image_uri}" alt="${product.title}" class="product-image">
-      <div class="product-info">
-        <div class="product-title" title="${product.title}">${product.title}</div>
-        <div class="tags" style="display: flex; flex-wrap: wrap; gap: 4px;">
-          ${isHot ? `<span class="tag hot" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}">爆款</span>` : 
-                  `<span class="tag potential" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}">潜力款</span>`}
-          ${performanceTags}
+      <div class="card-content" style="display: flex; gap: 12px; padding: 12px; height: 100%; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div class="image-container" style="flex: 0 0 120px; height: 120px; border-radius: 4px; overflow: hidden; position: relative;">
+          <img src="${product.image_uri}" alt="${product.title}" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        <div class="info-container" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px;">
+          <div class="product-title" title="${product.title}" style="font-size: 14px; font-weight: 500; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${product.title}</div>
+          <div class="tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto;">
+            ${isHot ? 
+              `<span class="tag hot" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #ff4d4f; color: white; font-size: 12px; font-weight: 500;">爆款</span>` : 
+              `<span class="tag potential" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #1890ff; color: white; font-size: 12px; font-weight: 500;">潜力款</span>`
+            }
+            ${performanceTags}
+          </div>
         </div>
       </div>
     `;
