@@ -1,7 +1,19 @@
 // 导入标签配置
 import tagConfig from './tag-config.js';
 
+let currentMode = 'analysis';
+let orderTable = null;
+
 document.addEventListener('DOMContentLoaded', function() {
+  // 初始化模式切换按钮事件
+  document.getElementById('analysisMode').addEventListener('click', function() {
+    switchMode('analysis');
+  });
+
+  document.getElementById('orderMode').addEventListener('click', function() {
+    switchMode('order');
+  });
+
   // 等待所有资源加载完成
   window.addEventListener('load', function() {
     // 检查是否有错误参数
@@ -45,58 +57,194 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      const apiUrl = `https://compass.jinritemai.com/compass_api/content_live/author/live_screen/product_list_after_live?index_selected=product_click_ucnt%2Cproduct_click_pay_ucnt_ratio%2Cproduct_show_ucnt%2Cproduct_show_click_ucnt_ratio%2Cgpm%2Cpay_combo_cnt&data_range=0&room_id=${result.currentLiveRoomId}`;
-
-      fetch(apiUrl)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(jsonData => {
-          if (!jsonData || !jsonData.data || !jsonData.data.data_result || !jsonData.data.data_head) {
-            throw new Error('Invalid JSON data structure');
-          }
-
-          try {
-            // 销毁现有的 DataTable 实例（如果存在）
-            if ($.fn.DataTable.isDataTable('#productTable')) {
-              $('#productTable').DataTable().destroy();
-            }
-
-            // 清空表格内容
-            $('#productTable').empty();
-
-            // 计算商品统计指标
-            const metrics = calculateProductMetrics(jsonData.data.data_result);
-
-            // 分析数据
-            const { hotProducts, potentialProducts } = analyzeProducts(jsonData.data.data_result, metrics);
-
-            // 初始化表格
-            window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
-
-            // 显示爆款商品
-            displayProductCards(hotProducts, 'hotProducts', true);
-            
-            // 显示潜力商品
-            displayProductCards(potentialProducts, 'potentialProducts', false);
-
-            // 更新表格
-            updateTableWithTags(window.productTable, jsonData.data.data_result);
-          } catch (error) {
-            console.error('Error initializing DataTable:', error);
-            document.body.innerHTML = '<div class="alert alert-danger" style="margin: 20px;">Error initializing table. Please try again.</div>';
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          document.body.innerHTML = `<div class="alert alert-danger" style="margin: 20px;">Error: ${error.message}</div>`;
-        });
+      loadAnalysisData(result.currentLiveRoomId);
     });
   });
 });
+
+// 切换模式
+function switchMode(mode) {
+  currentMode = mode;
+  
+  // 更新按钮状态
+  document.getElementById('analysisMode').classList.toggle('active', mode === 'analysis');
+  document.getElementById('orderMode').classList.toggle('active', mode === 'order');
+  
+  // 更新内容显示
+  document.getElementById('analysisContent').style.display = mode === 'analysis' ? 'block' : 'none';
+  document.getElementById('orderContent').style.display = mode === 'order' ? 'block' : 'none';
+
+  // 加载相应模式的数据
+  chrome.storage.local.get(['currentLiveRoomId'], function(result) {
+    if (!result.currentLiveRoomId) {
+      document.body.innerHTML = '<div class="alert alert-danger" style="margin: 20px;">Error: No live room ID found</div>';
+      return;
+    }
+
+    if (mode === 'analysis') {
+      loadAnalysisData(result.currentLiveRoomId);
+    } else {
+      loadOrderData(result.currentLiveRoomId);
+    }
+  });
+}
+
+// 加载分析数据
+function loadAnalysisData(liveRoomId) {
+  const apiUrl = `https://compass.jinritemai.com/compass_api/content_live/author/live_screen/product_list_after_live?index_selected=product_click_ucnt%2Cproduct_click_pay_ucnt_ratio%2Cproduct_show_ucnt%2Cproduct_show_click_ucnt_ratio%2Cgpm%2Cpay_combo_cnt&data_range=0&room_id=${liveRoomId}`;
+
+  fetch(apiUrl)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(jsonData => {
+      if (!jsonData || !jsonData.data || !jsonData.data.data_result || !jsonData.data.data_head) {
+        throw new Error('Invalid JSON data structure');
+      }
+
+      try {
+        // 销毁现有的 DataTable 实例（如果存在）
+        if ($.fn.DataTable.isDataTable('#productTable')) {
+          $('#productTable').DataTable().destroy();
+        }
+
+        // 清空表格内容
+        $('#productTable').empty();
+
+        // 计算商品统计指标
+        const metrics = calculateProductMetrics(jsonData.data.data_result);
+
+        // 分析数据
+        const { hotProducts, potentialProducts } = analyzeProducts(jsonData.data.data_result, metrics);
+
+        // 初始化表格
+        window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
+
+        // 显示爆款商品
+        displayProductCards(hotProducts, 'hotProducts', true);
+        
+        // 显示潜力商品
+        displayProductCards(potentialProducts, 'potentialProducts', false);
+
+        // 更新表格
+        updateTableWithTags(window.productTable, jsonData.data.data_result);
+      } catch (error) {
+        console.error('Error initializing DataTable:', error);
+        document.body.innerHTML = '<div class="alert alert-danger" style="margin: 20px;">Error initializing table. Please try again.</div>';
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      document.body.innerHTML = `<div class="alert alert-danger" style="margin: 20px;">Error: ${error.message}</div>`;
+    });
+}
+
+// 加载订单数据
+async function loadOrderData(liveRoomId) {
+  try {
+    // 销毁现有的订单表格实例（如果存在）
+    if ($.fn.DataTable.isDataTable('#orderTable')) {
+      $('#orderTable').DataTable().destroy();
+    }
+
+    // 获取第一页数据以确定总页数
+    const firstPageData = await fetchOrderPage(liveRoomId, 1);
+    if (!firstPageData || !firstPageData.data || !firstPageData.data.page_result) {
+      throw new Error('Invalid order data structure');
+    }
+
+    const { total } = firstPageData.data.page_result;
+    const pageSize = 20;
+    const totalPages = Math.ceil(total / pageSize);
+
+    // 获取所有页的数据
+    const allOrders = [];
+    const promises = [];
+
+    // 添加第一页数据
+    if (firstPageData.data.order_list) {
+      allOrders.push(...firstPageData.data.order_list);
+    }
+
+    // 获取剩余页的数据
+    for (let page = 2; page <= totalPages; page++) {
+      promises.push(fetchOrderPage(liveRoomId, page));
+    }
+
+    const results = await Promise.all(promises);
+    results.forEach(result => {
+      if (result && result.data && result.data.order_list) {
+        allOrders.push(...result.data.order_list);
+      }
+    });
+
+    // 初始化订单表格
+    orderTable = $('#orderTable').DataTable({
+      data: allOrders,
+      columns: [
+        {
+          data: 'sku_product_img',
+          render: function(data) {
+            return `<img src="${data}" class="product-image" alt="商品图片">`;
+          }
+        },
+        { data: 'product_title' },
+        { data: 'sku_product_title' },
+        { data: 'item_num' },
+        { 
+          data: 'order_amount',
+          render: function(data) {
+            return `¥${(data.value / 100).toFixed(2)}`;
+          }
+        },
+        { data: 'nick_name' },
+        {
+          data: 'order_ts',
+          render: function(data) {
+            return new Date(data * 1000).toLocaleString('zh-CN');
+          }
+        },
+        {
+          data: 'order_status',
+          render: function(data) {
+            const statusMap = {
+              1: '已下单',
+              2: '已付款',
+              3: '已发货',
+              4: '已完成',
+              5: '已取消'
+            };
+            return statusMap[data] || '未知状态';
+          }
+        },
+        { data: 'order_id' }
+      ],
+      order: [[6, 'desc']],  // 默认按下单时间降序排序
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json'
+      },
+      pageLength: 25,
+      responsive: true
+    });
+  } catch (error) {
+    console.error('Error loading order data:', error);
+    document.body.innerHTML = `<div class="alert alert-danger" style="margin: 20px;">Error loading order data: ${error.message}</div>`;
+  }
+}
+
+// 获取单页订单数据
+async function fetchOrderPage(liveRoomId, pageNo) {
+  const apiUrl = `https://compass.jinritemai.com/compass_api/content_live/author/live_screen/live_order?room_id=${liveRoomId}&order_status=3&page_no=${pageNo}&page_size=20`;
+  
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+}
 
 // 初始化表格
 function initializeTable(products, dataHead) {
