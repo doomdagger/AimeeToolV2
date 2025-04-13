@@ -37,38 +37,3 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-// 获取直播间ID
-function getRoomId() {
-  const url = window.location.href;
-  const match = url.match(/\/room\/(\d+)/);
-  return match ? match[1] : null;
-}
-
-// 构建API URL
-function fetchProductList() {
-  try {
-    const roomId = getRoomId();
-    if (!roomId) {
-      throw new Error('无法获取直播间ID');
-    }
-
-    const apiUrl = `https://compass.jinritemai.com/compass_api/content_live/author/live_screen/product_list_after_live?index_selected=product_click_ucnt%2Cproduct_click_pay_ucnt_ratio%2Cproduct_show_ucnt%2Cproduct_show_click_ucnt_ratio%2Cgpm%2Cpay_combo_cnt&data_range=0&room_id=${roomId}`;
-
-    fetch(apiUrl)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('API请求失败');
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log(data);
-      })
-      .catch(error => {
-        console.error('获取商品列表失败:', error);
-      });
-  } catch (error) {
-    console.error('获取商品列表失败:', error);
-  }
-}

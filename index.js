@@ -68,13 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // 清空表格内容
             $('#productTable').empty();
 
-            // 计算所有产品的成交金额
-            jsonData.data.data_result.forEach(product => {
-              const price = product.market_price?.value || 0;
-              const count = product.pay_combo_cnt?.value || 0;
-              product._transaction_amount = (price * count) / 100;
-            });
-
             // 初始化表格
             window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
 
@@ -291,22 +284,28 @@ function initializeTable(products, dataHead) {
   return table;
 }
 
-// 分析商品性能
+// 分析商品分数
 function analyzeProducts(products) {
   // 使用配置中的阈值
   const thresholds = tagConfig.thresholds;
 
   // 分析每个商品
   products.forEach(product => {
-    // 计算分数
+    // 计算成交额（因为某些标签需要用到这个值）
+    const price = product.market_price?.value || 0;
+    const count = product.pay_combo_cnt?.value || 0;
+    const transactionAmount = (price * count) / 100;
+    product.calculatedMetrics = {
+      transactionAmount
+    };
+
+    // 使用 tag-config 中的 shouldShow 逻辑计算分数
     const scores = {
-      exposure: product.product_show_ucnt.value >= thresholds.exposure ? 1 : 0,
-      clickRate: (product.product_show_ucnt.value >= thresholds.minExposure && 
-                 product.product_show_click_ucnt_ratio.value >= thresholds.clickRate) ? 1 : 0,
-      convRate: (product.product_click_ucnt.value >= thresholds.minClicks && 
-                product.product_click_pay_ucnt_ratio.value >= thresholds.convRate) ? 1 : 0,
-      gpm: (product.gpm?.value || 0) >= thresholds.gpm ? 1 : 0,
-      sales: (product.pay_combo_cnt?.value || 0) >= thresholds.sales ? 1 : 0
+      exposure: tagConfig.tags['高曝光'].shouldShow(product, thresholds) ? 1 : 0,
+      clickRate: tagConfig.tags['点击率优'].shouldShow(product, thresholds) ? 1 : 0,
+      convRate: tagConfig.tags['转化率优'].shouldShow(product, thresholds) ? 1 : 0,
+      gpm: tagConfig.tags['高GPM'].shouldShow(product, thresholds) ? 1 : 0,
+      sales: tagConfig.tags['高销量'].shouldShow(product, thresholds) ? 1 : 0
     };
 
     // 计算总分
@@ -316,25 +315,8 @@ function analyzeProducts(products) {
     };
 
     // 生成性能标签
-    product.performanceTags = [];
-    if (scores.exposure) product.performanceTags.push('高曝光');
-    if (product.product_click_ucnt.value >= thresholds.clicks) product.performanceTags.push('高点击');
-    if (scores.clickRate) product.performanceTags.push('点击率优');
-    if (scores.convRate) product.performanceTags.push('转化率优');
-    if (scores.gpm) product.performanceTags.push('高GPM');
-    if (scores.sales) product.performanceTags.push('高销量');
-    
-    // 计算成交额
-    const price = product.market_price?.value || 0;
-    const count = product.pay_combo_cnt?.value || 0;
-    const transactionAmount = (price * count) / 100;
-    product.calculatedMetrics = {
-      transactionAmount
-    };
-    
-    if (transactionAmount >= thresholds.transactionAmount) {
-      product.performanceTags.push('高成交额');
-    }
+    product.performanceTags = Object.keys(tagConfig.tags)
+      .filter(tagName => tagConfig.tags[tagName].shouldShow(product, thresholds));
   });
 
   // 按总分排序

@@ -3,12 +3,12 @@ const tagConfig = {
   // 标签的阈值配置
   thresholds: {
     exposure: 1000,     // 高曝光阈值
-    clicks: 500,        // 高点击阈值
-    clickRate: 0.15,    // 点击率优秀阈值
-    convRate: 0.1,      // 转化率优秀阈值
-    gpm: 1000,          // 高GPM阈值
+    clicks: 200,        // 高点击阈值
+    clickRate: 0.18,    // 点击率优秀阈值
+    convRate: 0.03,      // 转化率优秀阈值
+    gpm: 200000,        // 高GPM阈值
     sales: 50,          // 高销量阈值
-    transactionAmount: 5000,  // 高成交额阈值
+    transactionAmount: 10000,  // 高成交额阈值
 
     // 最低要求
     minExposure: 100,   // 显示点击率标签的最低曝光量
