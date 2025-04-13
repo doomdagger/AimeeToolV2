@@ -68,8 +68,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // 清空表格内容
             $('#productTable').empty();
 
+            // 计算商品统计指标
+            const metrics = calculateProductMetrics(jsonData.data.data_result);
+
             // 分析数据
-            const { hotProducts, potentialProducts } = analyzeProducts(jsonData.data.data_result);
+            const { hotProducts, potentialProducts } = analyzeProducts(jsonData.data.data_result, metrics);
 
             // 初始化表格
             window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
@@ -122,7 +125,7 @@ function initializeTable(products, dataHead) {
       title: '价格',
       width: '80px',
       render: function(data, type, row) {
-        const price = row.market_price?.value || 0;
+        const price = row.market_price?.value ?? 0;
         if (type === 'sort') {
           return Number(price);
         }
@@ -138,7 +141,7 @@ function initializeTable(products, dataHead) {
       title: header.index_display,
       width: '120px',
       render: function(data, type, row) {
-        const value = row[header.index_name]?.value;
+        const value = row[header.index_name]?.value ?? 0;
         if (value === undefined || value === null) {
           return type === 'sort' ? 0 : '-';
         }
@@ -186,10 +189,10 @@ function initializeTable(products, dataHead) {
     width: '120px',
     render: function(data, type, row) {
       if (type === 'sort') {
-        return Number(row._transaction_amount || 0);
+        return Number(row._transaction_amount ?? 0);
       }
 
-      const amount = row._transaction_amount || 0;
+      const amount = row._transaction_amount ?? 0;
       const tag = row.performanceTags?.includes('高成交额') ? tagConfig.generateTagHtml('高成交额', row) : '';
       
       return `
@@ -257,32 +260,53 @@ function initializeTable(products, dataHead) {
   return table;
 }
 
+function scoreProduct(product, metrics) {
+  const VIRTUAL_SAMPLES = 20;
+
+  // 数据过滤（曝光<1000或点击<50不评分）
+  if(product.product_show_ucnt.value < tagConfig.thresholds.minExposure || product.product_click_ucnt.value < tagConfig.thresholds.minClicks) return 0;
+
+  // 核心指标计算
+  const gpm = (product._transaction_amount / (product.product_show_ucnt.value/1000)) || 0;
+  const opm = (product.pay_combo_cnt?.value / (product.product_show_ucnt.value/1000)) || 0;
+  
+  // 贝叶斯调整转化率
+  const ctr = (product.product_click_ucnt.value + VIRTUAL_SAMPLES*tagConfig.thresholds.clickRate)/(product.product_show_ucnt.value + VIRTUAL_SAMPLES);
+  const cvr = (product.pay_combo_cnt?.value + VIRTUAL_SAMPLES*tagConfig.thresholds.convRate)/(product.product_click_ucnt.value + VIRTUAL_SAMPLES);
+  
+  // 对数标准化处理（防止头部垄断）
+  const gpmScore = Math.log10(gpm/100 +1) * 20; // GPM每增加500得15分
+  const opmScore = Math.log10(opm +1) * 5;      // OPM每增加5单得3分
+  const salesScore = Math.log10(product.pay_combo_cnt?.value +1)*15;
+  const gmvScore = Math.log10(product._transaction_amount/1000 +1)*15;
+
+  // 总分计算
+  const total = 
+    ctr*60 +          // 曝光点击转化率（基准3%→15分）
+    cvr*120 +          // 点击成交转化率（基准2%→25分）
+    gpmScore +          // GPM得分
+    opmScore +          // OPM得分
+    salesScore +        // 销量得分
+    gmvScore;           // 销售额得分
+
+  return Math.round(total);
+}
+
 // 分析商品分数
-function analyzeProducts(products) {
+function analyzeProducts(products, metrics) {
   // 使用配置中的阈值
   const thresholds = tagConfig.thresholds;
 
   // 分析每个商品
   products.forEach(product => {
     // 计算成交额（因为某些标签需要用到这个值）
-    const price = product.market_price?.value || 0;
-    const count = product.pay_combo_cnt?.value || 0;
+    const price = product.market_price?.value ?? 0;
+    const count = product.pay_combo_cnt?.value ?? 0;
     product._transaction_amount = (price * count) / 100;
 
-    // 使用 tag-config 中的 shouldBeConsidered 逻辑计算分数
-    const scores = {
-      exposure: tagConfig.tags['高曝光'].shouldBeConsidered(product, thresholds) ? 1 : 0,
-      click: tagConfig.tags['高点击'].shouldBeConsidered(product, thresholds) ? 1 : 0,
-      clickRate: tagConfig.tags['点击率优'].shouldBeConsidered(product, thresholds) ? 1 : 0,
-      convRate: tagConfig.tags['转化率优'].shouldBeConsidered(product, thresholds) ? 1 : 0,
-      gpm: tagConfig.tags['高GPM'].shouldBeConsidered(product, thresholds) ? 1 : 0,
-      sales: tagConfig.tags['高销量'].shouldBeConsidered(product, thresholds) ? 1 : 0
-    };
-
-    // 计算总分
+    // 保存分析结果
     product.analysisScore = {
-      ...scores,
-      total: Object.values(scores).reduce((a, b) => a + b, 0)
+      total: scoreProduct(product, metrics)
     };
 
     // 生成性能标签
@@ -291,17 +315,54 @@ function analyzeProducts(products) {
   });
 
   // 按总分排序
-  products.sort((a, b) => b.analysisScore.total - a.analysisScore.total);
+  products.sort((a, b) => b.analysisScore?.total - a.analysisScore?.total);
 
-  // 分离爆款和潜力商品
-  const hotProducts = products.filter(product => product.analysisScore.total >= 3);
+  // 分离爆款（总分 >= 70）和潜力商品（总分 >= 40 且 < 70）
+  const hotProducts = products.filter(product => product.analysisScore?.total >= 90);
   const potentialProducts = products.filter(product => 
-    product.analysisScore.total >= 1 && 
-    product.analysisScore.total < 3 && 
-    product.product_show_ucnt.value >= thresholds.minExposure
+    product.analysisScore?.total >= 70 && 
+    product.analysisScore?.total < 90 && 
+    product.product_show_ucnt?.value >= thresholds.minExposure
   );
 
   return { hotProducts, potentialProducts };
+}
+
+// 计算商品统计指标
+function calculateProductMetrics(products) {
+  // 获取最高曝光量
+  const maxExposure = Math.max(...products.map(p => p.product_show_ucnt?.value ?? 0));
+
+  // 计算点击量中位数
+  const clicks = products.map(p => p.product_click_ucnt?.value ?? 0).sort((a, b) => a - b);
+  const medianClicks = clicks.length % 2 === 0
+    ? (clicks[clicks.length / 2 - 1] + clicks[clicks.length / 2]) / 2
+    : clicks[Math.floor(clicks.length / 2)];
+
+  // 计算转化率平均值和标准差
+  const conversionRates = products.map(p => p.product_click_pay_ucnt_ratio?.value ?? 0);
+
+  const avgConversionRate = conversionRates.reduce((sum, rate) => sum + rate, 0) / conversionRates.length;
+
+  // 计算转化率平均值和标准差
+  const clickRates = products.map(p => p.product_show_click_ucnt_ratio?.value ?? 0);
+  const avgClinkRate = clickRates.reduce((sum, rate) => sum + rate, 0) / clickRates.length;
+
+  // 计算标准差
+  const conversionStdDev = Math.sqrt(
+    conversionRates.reduce((sum, rate) => {
+      const diff = rate - avgConversionRate;
+      return sum + diff * diff;
+    }, 0) / conversionRates.length
+  );
+
+  return {
+    maxExposure,
+    medianClicks,
+    conversionStdDev,
+    avgConversionRate,
+    avgClinkRate
+  };
 }
 
 // 显示商品卡片
@@ -332,8 +393,8 @@ function displayProductCards(products, containerId, isHot) {
           <div class="product-title" title="${product.title}" style="font-size: 14px; font-weight: 500; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${product.title}</div>
           <div class="tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto;">
             ${isHot ? 
-              `<span class="tag hot" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #ff4d4f; color: white; font-size: 12px; font-weight: 500;">爆款</span>` : 
-              `<span class="tag potential" data-tooltip="总分: ${product.analysisScore.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #1890ff; color: white; font-size: 12px; font-weight: 500;">潜力款</span>`
+              `<span class="tag hot" data-tooltip="总分: ${product.analysisScore?.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #ff4d4f; color: white; font-size: 12px; font-weight: 500;">爆款</span>` : 
+              `<span class="tag potential" data-tooltip="总分: ${product.analysisScore?.total.toFixed(1)}" style="padding: 4px 8px; border-radius: 4px; background: #1890ff; color: white; font-size: 12px; font-weight: 500;">潜力款</span>`
             }
             ${performanceTags}
           </div>
