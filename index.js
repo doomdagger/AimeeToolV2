@@ -68,11 +68,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // 清空表格内容
             $('#productTable').empty();
 
-            // 初始化表格
-            window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
-
             // 分析数据
             const { hotProducts, potentialProducts } = analyzeProducts(jsonData.data.data_result);
+
+            // 初始化表格
+            window.productTable = initializeTable(jsonData.data.data_result, jsonData.data.data_head);
 
             // 显示爆款商品
             displayProductCards(hotProducts, 'hotProducts', true);
@@ -97,13 +97,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 初始化表格
 function initializeTable(products, dataHead) {
-  // 计算所有产品的成交金额
-  products.forEach(product => {
-    const price = product.market_price?.value || 0;
-    const count = product.pay_combo_cnt?.value || 0;
-    product._transaction_amount = (price * count) / 100;
-  });
-
   // 构建列定义
   const columns = [
     {
@@ -168,24 +161,12 @@ function initializeTable(products, dataHead) {
         }
 
         // 添加高性能标签
-        if (header.index_name === 'product_show_ucnt' && row.performanceTags?.includes('高曝光')) {
-          tag = `<span class="tag" data-performance="exposure" data-tooltip="曝光人数: ${value}">高曝光</span>`;
-        } else if (header.index_name === 'product_show_click_ucnt_ratio' && row.performanceTags?.includes('点击率优')) {
-          // 只有当曝光人数大于等于50时才显示点击率优标签
-          const showCount = row.product_show_ucnt?.value || 0;
-          if (showCount >= 50) {
-            tag = `<span class="tag" data-performance="conversion" data-tooltip="点击率: ${displayValue} (曝光人数: ${showCount})">点击率优</span>`;
+        for (const tagName in tagConfig.tags) {
+          const config = tagConfig.tags[tagName];
+          if (header.index_name === config.field && row.performanceTags?.includes(tagName)) {
+            tag = tagConfig.generateTagHtml(tagName, row);
+            break;
           }
-        } else if (header.index_name === 'product_click_pay_ucnt_ratio' && row.performanceTags?.includes('转化率优')) {
-          // 只有当点击人数大于等于20时才显示转化率优标签
-          const clickCount = row.product_click_ucnt?.value || 0;
-          if (clickCount >= 20) {
-            tag = `<span class="tag" data-performance="conversion" data-tooltip="转化率: ${displayValue} (点击人数: ${clickCount})">转化率优</span>`;
-          }
-        } else if (header.index_name === 'gpm' && row.performanceTags?.includes('高GPM')) {
-          tag = `<span class="tag" data-performance="gpm" data-tooltip="GPM: ¥${displayValue}">高GPM</span>`;
-        } else if (header.index_name === 'pay_combo_cnt' && row.performanceTags?.includes('高销量')) {
-          tag = `<span class="tag" data-performance="sales" data-tooltip="成交件数: ${value}">高销量</span>`;
         }
 
         return `
@@ -209,12 +190,12 @@ function initializeTable(products, dataHead) {
       }
 
       const amount = row._transaction_amount || 0;
-      const hasTag = row.performanceTags?.includes('高成交额');
+      const tag = row.performanceTags?.includes('高成交额') ? tagConfig.generateTagHtml('高成交额', row) : '';
       
       return `
         <div class="metric-card">
           <span class="metric-value">¥${amount.toFixed(2)}</span>
-          ${hasTag ? `<span class="tag" data-performance="transaction" data-tooltip="成交额: ¥${amount.toFixed(2)}">高成交额</span>` : ''}
+          ${tag}
         </div>
       `;
     }
@@ -269,14 +250,6 @@ function initializeTable(products, dataHead) {
       });
       
       console.log('更新了位置信息:', Object.keys(window.productLocations).length);
-      
-      // 高亮当前行
-      if (window.currentHighlightedRow) {
-        const row = document.getElementById(`product-${window.currentHighlightedRow}`);
-        if (row) {
-          row.classList.add('highlighted-row');
-        }
-      }
     }
   });
 
@@ -294,18 +267,16 @@ function analyzeProducts(products) {
     // 计算成交额（因为某些标签需要用到这个值）
     const price = product.market_price?.value || 0;
     const count = product.pay_combo_cnt?.value || 0;
-    const transactionAmount = (price * count) / 100;
-    product.calculatedMetrics = {
-      transactionAmount
-    };
+    product._transaction_amount = (price * count) / 100;
 
-    // 使用 tag-config 中的 shouldShow 逻辑计算分数
+    // 使用 tag-config 中的 shouldBeConsidered 逻辑计算分数
     const scores = {
-      exposure: tagConfig.tags['高曝光'].shouldShow(product, thresholds) ? 1 : 0,
-      clickRate: tagConfig.tags['点击率优'].shouldShow(product, thresholds) ? 1 : 0,
-      convRate: tagConfig.tags['转化率优'].shouldShow(product, thresholds) ? 1 : 0,
-      gpm: tagConfig.tags['高GPM'].shouldShow(product, thresholds) ? 1 : 0,
-      sales: tagConfig.tags['高销量'].shouldShow(product, thresholds) ? 1 : 0
+      exposure: tagConfig.tags['高曝光'].shouldBeConsidered(product, thresholds) ? 1 : 0,
+      click: tagConfig.tags['高点击'].shouldBeConsidered(product, thresholds) ? 1 : 0,
+      clickRate: tagConfig.tags['点击率优'].shouldBeConsidered(product, thresholds) ? 1 : 0,
+      convRate: tagConfig.tags['转化率优'].shouldBeConsidered(product, thresholds) ? 1 : 0,
+      gpm: tagConfig.tags['高GPM'].shouldBeConsidered(product, thresholds) ? 1 : 0,
+      sales: tagConfig.tags['高销量'].shouldBeConsidered(product, thresholds) ? 1 : 0
     };
 
     // 计算总分
@@ -316,7 +287,7 @@ function analyzeProducts(products) {
 
     // 生成性能标签
     product.performanceTags = Object.keys(tagConfig.tags)
-      .filter(tagName => tagConfig.tags[tagName].shouldShow(product, thresholds));
+      .filter(tagName => tagConfig.tags[tagName].shouldBeConsidered(product, thresholds));
   });
 
   // 按总分排序
@@ -343,76 +314,12 @@ function displayProductCards(products, containerId, isHot) {
     return;
   }
 
-  const tagConfig = {
-    getTagConfig: function(tag) {
-      switch (tag) {
-        case '高曝光':
-          return { enabled: true, tooltip: '曝光人数: ${value}' };
-        case '高点击':
-          return { enabled: true, tooltip: '点击人数: ${value}' };
-        case '点击率优':
-          return { enabled: true, tooltip: '点击率: ${displayValue} (曝光人数: ${showCount})' };
-        case '转化率优':
-          return { enabled: true, tooltip: '转化率: ${displayValue} (点击人数: ${clickCount})' };
-        case '高GPM':
-          return { enabled: true, tooltip: 'GPM: ¥${displayValue}' };
-        case '高成交额':
-          return { enabled: true, tooltip: '成交额: ¥${amount.toFixed(2)}' };
-        case '高销量':
-          return { enabled: true, tooltip: '成交件数: ${value}' };
-        default:
-          return { enabled: false };
-      }
-    },
-    generateTagHtml: function(tag, product) {
-      const config = this.getTagConfig(tag);
-      if (!config.enabled) return '';
-
-      let type = '';
-      let tooltip = '';
-      
-      switch (tag) {
-        case '高曝光':
-          type = 'exposure';
-          tooltip = `曝光人数: ${product.product_show_ucnt.value}`;
-          break;
-        case '高点击':
-          type = 'click';
-          tooltip = `点击人数: ${product.product_click_ucnt.value}`;
-          break;
-        case '点击率优':
-          type = 'conversion';
-          tooltip = `点击率: ${(product.product_show_click_ucnt_ratio.value * 100).toFixed(2)}%`;
-          break;
-        case '转化率优':
-          type = 'conversion';
-          tooltip = `转化率: ${(product.product_click_pay_ucnt_ratio.value * 100).toFixed(2)}%`;
-          break;
-        case '高GPM':
-          type = 'gpm';
-          tooltip = `GPM: ¥${(product.gpm?.value / 100 || 0).toFixed(2)}`;
-          break;
-        case '高成交额':
-          type = 'transaction';
-          tooltip = `成交额: ¥${product.calculatedMetrics.transactionAmount.toFixed(2)}`;
-          break;
-        case '高销量':
-          type = 'sales';
-          tooltip = `成交件数: ${product.pay_combo_cnt?.value || 0}`;
-          break;
-      }
-      
-      return `<span class="tag" data-performance="${type}" data-tooltip="${tooltip}">${tag}</span>`;
-    }
-  };
-
   products.forEach(product => {
     const card = document.createElement('div');
     card.className = `product-card ${isHot ? 'hot' : 'potential'}`;
     
     // 生成性能标签HTML
     const performanceTags = product.performanceTags
-      .filter(tag => tagConfig.getTagConfig(tag)?.enabled)
       .map(tag => tagConfig.generateTagHtml(tag, product))
       .join('');
 
@@ -460,34 +367,33 @@ function displayProductCards(products, containerId, isHot) {
       const pageLength = table.page.len();
       const targetPage = Math.floor(targetIndex / pageLength);
 
-      // 先清除所有高亮
-      table.$('tr.highlighted-row').removeClass('highlighted-row');
+      // 先绑定事件监听器
+      table.one('draw.dt', function() {
+        // 获取目标行的DOM元素
+        const targetRow = table
+          .rows()
+          .nodes()
+          .toArray()
+          .find(row => row.id === `product-${productId}`);
 
-      // 跳转到对应页面并等待完成
+        if (targetRow) {
+          // 添加高亮
+          $(targetRow).addClass('highlighted-row');
+          
+          // 使用 requestAnimationFrame 确保在下一帧渲染时滚动
+          requestAnimationFrame(() => {
+            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            console.log('已高亮并滚动到行', productId);
+          });
+        } else {
+          console.log('找不到目标行', `product-${productId}`);
+        }
+      });
+
+      // 然后再执行页面跳转
       table
         .page(targetPage)
-        .draw('page')
-        .one('draw.dt', function() {
-          // 获取目标行的DOM元素
-          const targetRow = table
-            .rows()
-            .nodes()
-            .toArray()
-            .find(row => row.id === `product-${productId}`);
-
-          if (targetRow) {
-            // 添加高亮
-            $(targetRow).addClass('highlighted-row');
-            
-            // 使用 requestAnimationFrame 确保在下一帧渲染时滚动
-            requestAnimationFrame(() => {
-              targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              console.log('已高亮并滚动到行', productId);
-            });
-          } else {
-            console.log('找不到目标行', `product-${productId}`);
-          }
-        });
+        .draw('page');
     });
 
     container.appendChild(card);

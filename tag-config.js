@@ -6,9 +6,9 @@ const tagConfig = {
     clicks: 200,        // 高点击阈值
     clickRate: 0.18,    // 点击率优秀阈值
     convRate: 0.03,      // 转化率优秀阈值
-    gpm: 200000,        // 高GPM阈值
+    gpm: 300000,        // 高GPM阈值 注意单位是分
     sales: 50,          // 高销量阈值
-    transactionAmount: 10000,  // 高成交额阈值
+    transactionAmount: 10000,  // 高成交额阈值 注意单位是元
 
     // 最低要求
     minExposure: 100,   // 显示点击率标签的最低曝光量
@@ -22,7 +22,7 @@ const tagConfig = {
       field: 'product_show_ucnt',
       tooltipTemplate: value => `曝光人数: ${value}`,
       getValue: product => product.product_show_ucnt.value,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const value = product.product_show_ucnt.value;
         return value >= thresholds.exposure;
       }
@@ -32,7 +32,7 @@ const tagConfig = {
       field: 'product_click_ucnt',
       tooltipTemplate: value => `点击人数: ${value}`,
       getValue: product => product.product_click_ucnt.value,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const value = product.product_click_ucnt.value;
         return value >= thresholds.clicks;
       }
@@ -42,7 +42,7 @@ const tagConfig = {
       field: 'product_show_click_ucnt_ratio',
       tooltipTemplate: value => `点击率: ${(value * 100).toFixed(2)}%`,
       getValue: product => product.product_show_click_ucnt_ratio.value,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const exposure = product.product_show_ucnt.value;
         const ratio = product.product_show_click_ucnt_ratio.value;
         return exposure >= thresholds.minExposure && ratio >= thresholds.clickRate;
@@ -53,7 +53,7 @@ const tagConfig = {
       field: 'product_click_pay_ucnt_ratio',
       tooltipTemplate: value => `转化率: ${(value * 100).toFixed(2)}%`,
       getValue: product => product.product_click_pay_ucnt_ratio.value,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const clicks = product.product_click_ucnt.value;
         const ratio = product.product_click_pay_ucnt_ratio.value;
         return clicks >= thresholds.minClicks && ratio >= thresholds.convRate;
@@ -64,18 +64,18 @@ const tagConfig = {
       field: 'gpm',
       tooltipTemplate: value => `GPM: ¥${(value / 100).toFixed(2)}`,
       getValue: product => product.gpm?.value || 0,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const gpm = product.gpm?.value || 0;
         return gpm >= thresholds.gpm;
       }
     },
     '高成交额': {
       type: 'transaction',
-      field: 'calculatedMetrics.transactionAmount',
+      field: '_transaction_amount',
       tooltipTemplate: value => `成交额: ¥${value.toFixed(2)}`,
-      getValue: product => product.calculatedMetrics.transactionAmount,
-      shouldShow: (product, thresholds) => {
-        const amount = product.calculatedMetrics.transactionAmount;
+      getValue: product => product._transaction_amount,
+      shouldBeConsidered: (product, thresholds) => {
+        const amount = product._transaction_amount;
         return amount >= thresholds.transactionAmount;
       }
     },
@@ -84,7 +84,7 @@ const tagConfig = {
       field: 'pay_combo_cnt',
       tooltipTemplate: value => `成交件数: ${value}`,
       getValue: product => product.pay_combo_cnt?.value || 0,
-      shouldShow: (product, thresholds) => {
+      shouldBeConsidered: (product, thresholds) => {
         const sales = product.pay_combo_cnt?.value || 0;
         return sales >= thresholds.sales;
       }
@@ -97,16 +97,16 @@ const tagConfig = {
   },
 
   // 检查标签是否应该显示
-  shouldShowTag(tagName, product) {
+  shouldBeConsideredTag(tagName, product) {
     const config = this.tags[tagName];
     if (!config) return false;
-    return config.shouldShow(product, this.thresholds);
+    return config.shouldBeConsidered(product, this.thresholds);
   },
 
   // 生成标签HTML
   generateTagHtml(tagName, product) {
     const config = this.tags[tagName];
-    if (!config || !this.shouldShowTag(tagName, product)) return '';
+    if (!config || !this.shouldBeConsideredTag(tagName, product)) return '';
 
     const value = config.getValue(product);
     const tooltip = config.tooltipTemplate(value);
