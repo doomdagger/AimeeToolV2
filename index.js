@@ -150,6 +150,9 @@ async function loadOrderData(liveRoomId) {
       $('#orderTable').DataTable().destroy();
     }
 
+    // 清空表格内容
+    $('#orderTable tbody').empty();
+
     // 获取第一页数据以确定总页数
     const firstPageData = await fetchOrderPage(liveRoomId, 1);
     if (!firstPageData || !firstPageData.data || !firstPageData.data.page_result) {
@@ -184,31 +187,61 @@ async function loadOrderData(liveRoomId) {
     // 初始化订单表格
     orderTable = $('#orderTable').DataTable({
       data: allOrders,
+      pageLength: 20,
+      dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'p>>" +
+           "<'row'<'col-sm-12'tr>>" +
+           "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json'
+      },
+      order: [[6, 'desc']], // 默认按下单时间降序排序
       columns: [
         {
           data: 'sku_product_img',
+          orderable: false,  // 图片列不需要排序
           render: function(data) {
             return `<img src="${data}" class="product-image" alt="商品图片">`;
           }
         },
-        { data: 'product_title' },
-        { data: 'sku_product_title' },
-        { data: 'item_num' },
+        {
+          data: 'product_title',
+          title: '商品标题'
+        },
+        {
+          data: 'sku_product_title',
+          title: '规格'
+        },
+        {
+          data: 'item_num',
+          title: '数量'
+        },
         { 
           data: 'order_amount',
-          render: function(data) {
-            return `¥${(data.value / 100).toFixed(2)}`;
+          title: '订单金额',
+          type: 'numeric',
+          orderSequence: ['desc', 'asc'],
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') {
+              return data.value;  // 排序时使用原始数值
+            }
+            return `¥${(data.value / 100).toFixed(2)}`;  // 显示时格式化
           }
         },
-        { data: 'nick_name' },
+        {
+          data: 'nick_name',
+          title: '买家昵称'
+        },
         {
           data: 'order_ts',
+          title: '下单时间',
           render: function(data) {
             return new Date(data * 1000).toLocaleString('zh-CN');
-          }
+          },
+          type: 'num'  // 使用数字类型排序
         },
         {
           data: 'order_status',
+          title: '订单状态',
           render: function(data) {
             const statusMap = {
               1: '已下单',
@@ -220,14 +253,25 @@ async function loadOrderData(liveRoomId) {
             return statusMap[data] || '未知状态';
           }
         },
-        { data: 'order_id' }
+        {
+          data: 'order_id',
+          title: '订单号'
+        }
       ],
-      order: [[6, 'desc']],  // 默认按下单时间降序排序
-      language: {
-        url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json'
-      },
-      pageLength: 25,
-      responsive: true
+      columnDefs: [
+        {
+          targets: 4,  // 订单金额列
+          createdCell: function(td, cellData, rowData, row, col) {
+            $(td).css('text-align', 'right');  // 金额右对齐
+          }
+        },
+        {
+          targets: 3,  // 数量列
+          createdCell: function(td, cellData, rowData, row, col) {
+            $(td).css('text-align', 'center');  // 数量居中对齐
+          }
+        }
+      ]
     });
   } catch (error) {
     console.error('Error loading order data:', error);
@@ -364,13 +408,15 @@ function initializeTable(products, dataHead) {
   table = $('#productTable').DataTable({
     data: products,
     columns: columns,
-    order: [[2, 'desc']], // 默认按曝光人数降序
     pageLength: 25,
     scrollX: true,
     lengthMenu: [[25, 50, 100, -1], [25, 50, 100, "全部"]],
     language: {
       url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json'
     },
+    dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'p>>" +
+         "<'row'<'col-sm-12'tr>>" +
+         "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
     columnDefs: [
       // 强制所有列使用数字排序 (除了第一列商品名)
       { targets: '_all', type: 'num' },
