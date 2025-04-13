@@ -620,6 +620,132 @@
       color: white;
       border-color: #1890ff;
     }
+
+    /* DataTables 搜索框样式 */
+    .dataTables_filter {
+      text-align: right;
+    }
+
+    .dataTables_filter input {
+      margin-left: 8px;
+      padding: 6px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      width: 200px;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .dataTables_filter input:focus {
+      border-color: #1890ff;
+      outline: 0;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    }
+
+    /* 顶部分页样式调整 */
+    .dataTables_wrapper > .row:first-child {
+      background-color: #f8f9fa;
+      border-radius: 8px 8px 0 0;
+      margin: 0;
+      padding: 10px;
+      border: 1px solid #dee2e6;
+      border-bottom: none;
+    }
+
+    /* DataTables 表头工具栏样式 */
+    .table-header-row {
+      background-color: #f8f9fa;
+      border-radius: 8px 8px 0 0;
+      margin: 0 !important;
+      padding: 15px;
+      border: 1px solid #dee2e6;
+      border-bottom: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .table-header-row > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 每页显示条数选择器样式 */
+    .dataTables_length {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .dataTables_length select {
+      margin: 0 8px;
+      padding: 6px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      background-color: white;
+    }
+
+    .dataTables_length select:focus {
+      border-color: #1890ff;
+      outline: 0;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    }
+
+    /* 顶部分页按钮样式 */
+    .table-header-row .dataTables_paginate {
+      padding: 0 !important;
+      margin: 0 !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 搜索框样式 */
+    .dataTables_filter {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .dataTables_filter input {
+      margin-left: 8px;
+      padding: 6px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      width: 200px;
+      transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .dataTables_filter input:focus {
+      border-color: #1890ff;
+      outline: 0;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    }
+
+    /* 表格主体样式 */
+    .dataTables_wrapper .dataTable {
+      border-left: 1px solid #dee2e6;
+      border-right: 1px solid #dee2e6;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* 底部信息和分页样式 */
+    .dataTables_wrapper > .row:last-child {
+      background-color: #f8f9fa;
+      border-radius: 0 0 8px 8px;
+      margin: 0 !important;
+      padding: 15px;
+      border: 1px solid #dee2e6;
+      border-top: none;
+    }
+
+    .dataTables_info {
+      color: #666;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: flex;
+      align-items: center;
+    }
   </style>
 </head>
 <body>

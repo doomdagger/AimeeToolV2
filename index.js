@@ -188,7 +188,7 @@ async function loadOrderData(liveRoomId) {
     orderTable = $('#orderTable').DataTable({
       data: allOrders,
       pageLength: 20,
-      dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'p>>" +
+      dom: "<'row table-header-row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'p><'col-sm-12 col-md-4'f>>" +
            "<'row'<'col-sm-12'tr>>" +
            "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
       language: {
@@ -414,7 +414,7 @@ function initializeTable(products, dataHead) {
     language: {
       url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Chinese.json'
     },
-    dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'p>>" +
+    dom: "<'row table-header-row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4'p><'col-sm-12 col-md-4'f>>" +
          "<'row'<'col-sm-12'tr>>" +
          "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
     columnDefs: [
