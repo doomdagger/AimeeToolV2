@@ -6,6 +6,7 @@ class OrderManager {
     this.shopTable = null;
     this.orders = [];
     this.productDb = new ProductDatabase(); // 使用现有的商品数据库
+    this.statusChart = null;
   }
 
   // 初始化
@@ -229,6 +230,9 @@ class OrderManager {
     document.getElementById('completedRefundRate').textContent = `${completedRefundRate.toFixed(2)}%`;
     document.getElementById('totalRefundRate').textContent = `${totalRefundRate.toFixed(2)}%`;
     
+    // 更新订单状态图表
+    this.updateStatusChart(summary.statusCounts);
+    
     // 保存汇总数据供后续使用
     this.summary = summary;
   }
@@ -437,6 +441,79 @@ class OrderManager {
       "'": '&#039;'
     };
     return text ? String(text).replace(/[&<>"']/g, m => map[m]) : '';
+  }
+
+  // 更新订单状态图表
+  updateStatusChart(statusCounts) {
+    const ctx = document.getElementById('orderStatusChart');
+    
+    // 如果图表已经存在，则销毁
+    if (this.statusChart) {
+      this.statusChart.destroy();
+    }
+    
+    // 数据处理
+    const labels = [
+      '订单付款',
+      '订单收货',
+      '订单退货退款',
+      '订单结算'
+    ];
+    
+    const data = [
+      statusCounts['订单付款'] || 0,
+      statusCounts['订单收货'] || 0,
+      statusCounts['订单退货退款'] || 0,
+      statusCounts['订单结算'] || 0
+    ];
+    
+    // 颜色配置
+    const backgroundColor = [
+      '#1976d2', // 订单付款 - 蓝色
+      '#388e3c', // 订单收货 - 绿色
+      '#d32f2f', // 订单退货退款 - 红色
+      '#ffa000'  // 订单结算 - 黄色
+    ];
+    
+    // 创建图表
+    this.statusChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: backgroundColor,
+          borderColor: backgroundColor,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              font: {
+                size: 12
+              },
+              padding: 15
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.raw || 0;
+                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
   }
 }
 
