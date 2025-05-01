@@ -304,7 +304,9 @@ function initializeTable(products, dataHead) {
         }
         return `
           <div class="product-cell">
-            <img src="${row.image_uri}" alt="${row.title}" class="table-product-image">
+            <div class="product-image-wrapper">
+              <img src="${row.image_uri}" alt="${row.title}" class="table-product-image">
+            </div>
             <div class="product-info">
               <span class="product-title" title="${row.title}">${row.title}</span>
             </div>
