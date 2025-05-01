@@ -202,6 +202,23 @@
       margin-top: 2px;
       display: block;
     }
+    /* 状态卡片详情样式 */
+    .status-details {
+      border-top: 1px solid rgba(0,0,0,0.1);
+      padding-top: 8px;
+      margin-top: 5px;
+      font-size: 0.85rem;
+    }
+    
+    .status-percent {
+      color: #666;
+      margin-bottom: 3px;
+    }
+    
+    .status-commission {
+      font-weight: bold;
+      color: #0d6efd;
+    }
   </style>
 </head>
 <body>
@@ -406,18 +423,34 @@
                   <div class="status-card status-paid">
                     <div class="status-count" id="statusPaid">0</div>
                     <div class="status-label">订单付款</div>
+                    <div class="status-details">
+                      <div class="status-percent" id="statusPaidPercent">0.0%</div>
+                      <div class="status-commission" id="statusPaidCommission">¥0.00</div>
+                    </div>
                   </div>
                   <div class="status-card status-received">
                     <div class="status-count" id="statusReceived">0</div>
                     <div class="status-label">订单收货</div>
+                    <div class="status-details">
+                      <div class="status-percent" id="statusReceivedPercent">0.0%</div>
+                      <div class="status-commission" id="statusReceivedCommission">¥0.00</div>
+                    </div>
                   </div>
                   <div class="status-card status-refunded">
                     <div class="status-count" id="statusRefunded">0</div>
                     <div class="status-label">订单退货退款</div>
+                    <div class="status-details">
+                      <div class="status-percent" id="statusRefundedPercent">0.0%</div>
+                      <div class="status-commission" id="statusRefundedCommission">¥0.00</div>
+                    </div>
                   </div>
                   <div class="status-card status-settled">
                     <div class="status-count" id="statusSettled">0</div>
                     <div class="status-label">订单结算</div>
+                    <div class="status-details">
+                      <div class="status-percent" id="statusSettledPercent">0.0%</div>
+                      <div class="status-commission" id="statusSettledCommission">¥0.00</div>
+                    </div>
                   </div>
                 </div>
               </div>

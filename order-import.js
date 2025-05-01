@@ -138,6 +138,12 @@ class OrderManager {
         '订单退货退款': 0,
         '订单结算': 0
       },
+      statusCommission: {
+        '订单付款': 0,
+        '订单收货': 0,
+        '订单退货退款': 0,
+        '订单结算': 0
+      },
       shopSummary: {}
     };
     
@@ -157,6 +163,7 @@ class OrderManager {
       
       // 统计订单状态
       summary.statusCounts[order.orderStatus] = (summary.statusCounts[order.orderStatus] || 0) + 1;
+      summary.statusCommission[order.orderStatus] = (summary.statusCommission[order.orderStatus] || 0) + order.commissionTotal;
       
       // 按店铺汇总
       if (!summary.shopSummary[order.shopName]) {
@@ -214,6 +221,14 @@ class OrderManager {
         (shop.commissionRateSum / shop.orderCount) : 0;
     });
     
+    // 计算订单状态百分比
+    const statusPercentages = {
+      '订单付款': totalOrders > 0 ? (summary.statusCounts['订单付款'] / totalOrders) * 100 : 0,
+      '订单收货': totalOrders > 0 ? (summary.statusCounts['订单收货'] / totalOrders) * 100 : 0,
+      '订单退货退款': totalOrders > 0 ? (summary.statusCounts['订单退货退款'] / totalOrders) * 100 : 0,
+      '订单结算': totalOrders > 0 ? (summary.statusCounts['订单结算'] / totalOrders) * 100 : 0
+    };
+    
     // 更新UI显示
     document.getElementById('totalDealAmount').textContent = `¥${summary.totalDealAmount.toFixed(2)}`;
     document.getElementById('settledCommission').textContent = `¥${summary.commissionByStatus.settled.toFixed(2)}`;
@@ -225,6 +240,16 @@ class OrderManager {
     document.getElementById('statusReceived').textContent = summary.statusCounts['订单收货'] || 0;
     document.getElementById('statusRefunded').textContent = summary.statusCounts['订单退货退款'] || 0;
     document.getElementById('statusSettled').textContent = summary.statusCounts['订单结算'] || 0;
+    
+    document.getElementById('statusPaidPercent').textContent = `${statusPercentages['订单付款'].toFixed(1)}%`;
+    document.getElementById('statusReceivedPercent').textContent = `${statusPercentages['订单收货'].toFixed(1)}%`;
+    document.getElementById('statusRefundedPercent').textContent = `${statusPercentages['订单退货退款'].toFixed(1)}%`;
+    document.getElementById('statusSettledPercent').textContent = `${statusPercentages['订单结算'].toFixed(1)}%`;
+    
+    document.getElementById('statusPaidCommission').textContent = `¥${summary.statusCommission['订单付款'].toFixed(2)}`;
+    document.getElementById('statusReceivedCommission').textContent = `¥${summary.statusCommission['订单收货'].toFixed(2)}`;
+    document.getElementById('statusRefundedCommission').textContent = `¥${summary.statusCommission['订单退货退款'].toFixed(2)}`;
+    document.getElementById('statusSettledCommission').textContent = `¥${summary.statusCommission['订单结算'].toFixed(2)}`;
     
     document.getElementById('completedRefundRate').textContent = `${completedRefundRate.toFixed(2)}%`;
     document.getElementById('totalRefundRate').textContent = `${totalRefundRate.toFixed(2)}%`;
