@@ -600,6 +600,17 @@ class OrderManager {
             defaultContent: '-'
           },
           {
+            targets: [1], // 商品名称列
+            render: function(data, type, row) {
+              if (type === 'display') {
+                const productId = row[0]; // 获取第一列的商品ID
+                const productUrl = `https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=${productId}&origin_type=604`;
+                return `<a href="${productUrl}" target="_blank">${data}</a>`;
+              }
+              return data;
+            }
+          },
+          {
             targets: [6], // 交易额列
             render: function(data) {
               return `¥${parseFloat(data).toFixed(2)}`;
@@ -689,7 +700,8 @@ class OrderManager {
       // 添加高退款率商品
       highRefundProducts.forEach(product => {
         const li = document.createElement('li');
-        li.innerHTML = `<strong>${product.productName}</strong> (ID: ${product.productId}) - 退款率: <span class="text-danger">${product.totalRefundRate.toFixed(2)}%</span>, 订单数: <strong>${product.orderCount}</strong>`;
+        const productUrl = `https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=${product.productId}&origin_type=604`;
+        li.innerHTML = `<a href="${productUrl}" target="_blank"><strong>${product.productName}</strong></a> (ID: ${product.productId}) - 退款率: <span class="text-danger">${product.totalRefundRate.toFixed(2)}%</span>, 订单数: <strong>${product.orderCount}</strong>`;
         highRefundList.appendChild(li);
       });
       
