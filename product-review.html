@@ -219,6 +219,44 @@
       font-weight: bold;
       color: #0d6efd;
     }
+    
+    /* u5e97u94fau8be6u60c5u6a21u6001u6846u6837u5f0f */
+    #shopDetailModal .modal-dialog {
+      max-width: 95%;
+      margin: 1.75rem auto;
+    }
+    
+    #shopDetailModal .modal-content {
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    #shopDetailModal .table-responsive {
+      overflow-x: auto;
+    }
+    
+    #shopDetailModal .dataTables_wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+    
+    #shopDetailModal #productSummaryTable {
+      width: 100% !important;
+    }
+    
+    @media (max-width: 1200px) {
+      #shopDetailModal .modal-dialog {
+        max-width: 100%;
+        margin: 0;
+        height: 100%;
+      }
+      
+      #shopDetailModal .modal-content {
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -488,25 +526,24 @@
             <i class="bi bi-shop me-2"></i>店铺数据列表
           </div>
           <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-bordered table-hover" id="shopTable">
-                <thead>
-                  <tr>
-                    <th>店铺名称</th>
-                    <th>付款订单数</th>
-                    <th>收货订单数</th>
-                    <th>退货退款订单数</th>
-                    <th>结算订单数</th>
-                    <th>店铺总成交额</th>
-                    <th>店铺平均佣金率</th>
-                    <th>完结订单退货率</th>
-                    <th>全部订单退货率</th>
-                  </tr>
-                </thead>
-                <tbody id="shopTableBody">
-                </tbody>
-              </table>
-            </div>
+            <table id="shopTable" class="table table-striped table-bordered" style="width:100%">
+              <thead>
+                <tr>
+                  <th>店铺名称</th>
+                  <th>付款订单数</th>
+                  <th>收货订单数</th>
+                  <th>退货退款订单数</th>
+                  <th>结算订单数</th>
+                  <th>店铺总成交额</th>
+                  <th>店铺平均佣金率</th>
+                  <th>完结订单退货率</th>
+                  <th>全部订单退货率</th>
+                  <th>详情</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
           </div>
         </div>
         
@@ -634,6 +671,54 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" autofocus>取消</button>
           <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 店铺详情模态框 -->
+  <div class="modal fade" id="shopDetailModal" tabindex="-1" aria-labelledby="shopDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-xl-down">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shopDetailModalLabel">店铺详情</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h6 class="mb-3">店铺名称: <span id="modalShopName"></span></h6>
+          
+          <!-- 高退货率商品列表 -->
+          <div id="highRefundProducts" class="alert alert-danger mb-4" style="display: none;">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>高退货率商品</h6>
+            <p class="mb-0">以下商品退货率超过 75%，请注意！</p>
+            <ul id="highRefundProductsList" class="mt-2 mb-0"></ul>
+          </div>
+          
+          <!-- 商品汇总数据 -->
+          <h6 class="mb-3"><i class="bi bi-box me-2"></i>商品汇总数据</h6>
+          <div class="table-responsive">
+            <table id="productSummaryTable" class="table table-striped table-bordered" style="width:100%">
+              <thead>
+                <tr>
+                  <th>商品ID</th>
+                  <th>商品名称</th>
+                  <th>付款订单数</th>
+                  <th>收货订单数</th>
+                  <th>退货退款订单数</th>
+                  <th>结算订单数</th>
+                  <th>商品总成交额</th>
+                  <th>商品平均佣金率</th>
+                  <th>完结订单退货率</th>
+                  <th>全部订单退货率</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
         </div>
       </div>
     </div>

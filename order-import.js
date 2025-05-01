@@ -4,6 +4,7 @@ class OrderManager {
     this.excelParser = new OrderExcelParser();
     this.orderTable = null;
     this.shopTable = null;
+    this.productSummaryTable = null;
     this.orders = [];
     this.productDb = new ProductDatabase(); // 使用现有的商品数据库
     this.statusChart = null;
@@ -209,8 +210,7 @@ class OrderManager {
     
     // 计算店铺退货率
     Object.values(summary.shopSummary).forEach(shop => {
-      const shopCompletedOrders = shop.statusCounts['订单结算'] + 
-                         shop.statusCounts['订单退货退款'];
+      const shopCompletedOrders = shop.statusCounts['订单结算'] + shop.statusCounts['订单退货退款'];
       shop.completedRefundRate = shopCompletedOrders > 0 ? 
         (shop.statusCounts['订单退货退款'] / shopCompletedOrders) * 100 : 0;
       
@@ -413,10 +413,14 @@ class OrderManager {
                          shop.statusCounts['订单结算'];
       
       // 计算每个状态的百分比
-      const paidPercent = totalOrders > 0 ? (shop.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
-      const receivedPercent = totalOrders > 0 ? (shop.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
-      const refundedPercent = totalOrders > 0 ? (shop.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
-      const settledPercent = totalOrders > 0 ? (shop.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
+      const paidPercent = totalOrders > 0 ? 
+        (shop.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const receivedPercent = totalOrders > 0 ? 
+        (shop.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
+      const refundedPercent = totalOrders > 0 ? 
+        (shop.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const settledPercent = totalOrders > 0 ? 
+        (shop.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
       
       // 计算每个状态的佣金
       const statusCommission = {};
@@ -469,17 +473,234 @@ class OrderManager {
         shop.totalDealAmount,
         shop.averageCommissionRate,
         shop.completedRefundRate,
-        shop.totalRefundRate
-      ]);
+        shop.totalRefundRate,
+        `<button class="btn btn-sm btn-primary shop-detail-btn" data-shop="${shop.shopName}">详情</button>`
+      ]).draw(false);
     });
     
-    // 重绘表格
-    this.shopTable.draw();
+    // 显示店铺数据表格
+    document.getElementById('shopTableCard').style.display = 'block';
     
-    // 添加过滤功能
-    this.addFilteringToTable(this.shopTable, '#shopTable');
+    // 添加店铺详情按钮事件
+    this.addShopDetailButtonEvents();
   }
-
+  
+  // 添加店铺详情按钮事件
+  addShopDetailButtonEvents() {
+    const buttons = document.querySelectorAll('.shop-detail-btn');
+    buttons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const shopName = e.target.getAttribute('data-shop');
+        this.showShopDetail(shopName);
+      });
+    });
+  }
+  
+  // 显示店铺详情
+  showShopDetail(shopName) {
+    // 设置店铺名称
+    document.getElementById('modalShopName').textContent = shopName;
+    
+    // 获取店铺订单
+    const shopOrders = this.orders.filter(order => order.shopName === shopName);
+    
+    // 计算商品汇总
+    const productSummary = this.calculateProductSummary(shopOrders);
+    
+    // 显示商品汇总表格
+    this.displayProductSummaryTable(productSummary);
+    
+    // 显示高退款率商品
+    this.displayHighRefundProducts(productSummary);
+    
+    // 显示店铺详情模态框
+    const modal = new bootstrap.Modal(document.getElementById('shopDetailModal'));
+    modal.show();
+  }
+  
+  // 计算商品汇总
+  calculateProductSummary(orders) {
+    const productSummary = {};
+    
+    orders.forEach(order => {
+      if (!productSummary[order.productId]) {
+        productSummary[order.productId] = {
+          productId: order.productId,
+          productName: order.productName,
+          totalDealAmount: 0,
+          orderCount: 0,
+          commissionRateSum: 0,
+          statusCounts: {
+            '订单付款': 0,
+            '订单收货': 0,
+            '订单退货退款': 0,
+            '订单结算': 0
+          },
+          statusCommission: {
+            '订单付款': 0,
+            '订单收货': 0,
+            '订单退货退款': 0,
+            '订单结算': 0
+          }
+        };
+      }
+      
+      const product = productSummary[order.productId];
+      product.totalDealAmount += order.dealAmount;
+      product.orderCount++;
+      product.commissionRateSum += order.commissionRate;
+      product.statusCounts[order.orderStatus]++;
+      product.statusCommission[order.orderStatus] += order.commissionTotal;
+    });
+    
+    // 计算商品退款率和平均佣金率
+    Object.values(productSummary).forEach(product => {
+      const completedOrders = product.statusCounts['订单结算'] + product.statusCounts['订单退货退款'];
+      
+      product.completedRefundRate = completedOrders > 0 ? 
+        (product.statusCounts['订单退货退款'] / completedOrders) * 100 : 0;
+      
+      product.totalRefundRate = product.orderCount > 0 ? 
+        (product.statusCounts['订单退货退款'] / product.orderCount) * 100 : 0;
+      
+      product.averageCommissionRate = product.orderCount > 0 ? 
+        (product.commissionRateSum / product.orderCount) : 0;
+    });
+    
+    return productSummary;
+  }
+  
+  // 显示商品汇总表格
+  displayProductSummaryTable(productSummary) {
+    // 初始化商品汇总表格
+    if (!this.productSummaryTable) {
+      this.productSummaryTable = $('#productSummaryTable').DataTable({
+        responsive: true,
+        language: {
+          search: "搜索:",
+          lengthMenu: "显示 _MENU_ 条记录",
+          info: "显示第 _START_ 至 _END_ 条记录，共 _TOTAL_ 条",
+          infoEmpty: "没有记录",
+          infoFiltered: "(从 _MAX_ 条记录过滤)",
+          paginate: {
+            first: "首页",
+            last: "末页",
+            next: "下一页",
+            previous: "上一页"
+          }
+        },
+        order: [[6, 'desc']], // 默认按商品交易额降序排列
+        dom: 'Blfrtip',
+        buttons: [
+          'copy', 'excel', 'csv', 'pdf', 'print'
+        ],
+        columnDefs: [
+          {
+            targets: '_all',
+            defaultContent: '-'
+          },
+          {
+            targets: [6], // 交易额列
+            render: function(data) {
+              return `¥${parseFloat(data).toFixed(2)}`;
+            }
+          },
+          {
+            targets: [7, 8, 9], // 佣金率列
+            render: function(data) {
+              return `${parseFloat(data).toFixed(2)}%`;
+            }
+          },
+          {
+            // 处理HTML内容在订单状态列
+            targets: [2, 3, 4, 5],
+            render: function(data) {
+              return data;
+            }
+          }
+        ]
+      });
+    } else {
+      this.productSummaryTable.clear();
+    }
+    
+    // 添加商品汇总数据
+    Object.values(productSummary).forEach(product => {
+      // 计算订单状态百分比
+      const totalOrders = product.orderCount;
+      const paidPercent = totalOrders > 0 ? (product.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const receivedPercent = totalOrders > 0 ? (product.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
+      const refundedPercent = totalOrders > 0 ? (product.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const settledPercent = totalOrders > 0 ? (product.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
+      
+      this.productSummaryTable.row.add([
+        product.productId,
+        product.productName,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${product.statusCounts['订单付款']}</span> 
+             <span class="order-percent">(${paidPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${product.statusCommission['订单付款'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${product.statusCounts['订单收货']}</span> 
+             <span class="order-percent">(${receivedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${product.statusCommission['订单收货'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${product.statusCounts['订单退货退款']}</span> 
+             <span class="order-percent">(${refundedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${product.statusCommission['订单退货退款'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${product.statusCounts['订单结算']}</span> 
+             <span class="order-percent">(${settledPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${product.statusCommission['订单结算'].toFixed(2)}</span>
+         </div>`,
+        product.totalDealAmount,
+        product.averageCommissionRate,
+        product.completedRefundRate,
+        product.totalRefundRate
+      ]).draw(false);
+    });
+  }
+  
+  // 显示高退款率商品
+  displayHighRefundProducts(productSummary) {
+    // 选择退款率大于或等于75%且订单数大于或等于20的商品
+    const highRefundProducts = Object.values(productSummary)
+      .filter(product => product.totalRefundRate >= 75 && product.orderCount >= 20)
+      .sort((a, b) => b.orderCount - a.orderCount); // 按订单数降序排列
+    
+    const highRefundContainer = document.getElementById('highRefundProducts');
+    const highRefundList = document.getElementById('highRefundProductsList');
+    
+    // 清空高退款率商品列表
+    highRefundList.innerHTML = '';
+    
+    if (highRefundProducts.length > 0) {
+      // 添加高退款率商品
+      highRefundProducts.forEach(product => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${product.productName}</strong> (ID: ${product.productId}) - 退款率: <span class="text-danger">${product.totalRefundRate.toFixed(2)}%</span>, 订单数: <strong>${product.orderCount}</strong>`;
+        highRefundList.appendChild(li);
+      });
+      
+      // 显示高退款率商品容器
+      highRefundContainer.style.display = 'block';
+    } else {
+      // 隐藏高退款率商品容器
+      highRefundContainer.style.display = 'none';
+    }
+  }
+  
   // 为表格添加过滤功能
   addFilteringToTable(table, tableSelector) {
     // 如果已经添加了过滤行，则不再添加
@@ -513,6 +734,13 @@ class OrderManager {
         column.search(this.value).draw();
       }
     });
+  }
+
+  // u8ba1u7b5bu5e97u94fau7279u5b9au72b6u6001u7684u4f63u91d1
+  calculateStatusCommissionForShop(shopName, status) {
+    return this.orders
+      .filter(order => order.shopName === shopName && order.orderStatus === status)
+      .reduce((sum, order) => sum + order.commissionTotal, 0);
   }
 
   // HTML转义
