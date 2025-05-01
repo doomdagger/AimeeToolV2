@@ -83,13 +83,29 @@ class ProductDatabase {
         const getRequest = store.get(product.productId);
         
         getRequest.onsuccess = (event) => {
-          if (event.target.result) {
+          const existingProduct = event.target.result;
+          
+          if (existingProduct) {
             // 商品已存在，更新
-            store.put(product);
+            const presentFields = product._presentFields || [];
+            const updatedProduct = { ...existingProduct };
+            
+            presentFields.forEach(field => {
+              if (field !== '_presentFields') {
+                updatedProduct[field] = product[field];
+              }
+            });
+            
+            delete updatedProduct._presentFields;
+            
+            store.put(updatedProduct);
             updatedCount++;
           } else {
             // 商品不存在，添加
-            store.add(product);
+            const newProduct = { ...product };
+            delete newProduct._presentFields;
+            
+            store.add(newProduct);
             addedCount++;
           }
         };
@@ -216,8 +232,8 @@ class ExcelParser {
           }
           
           // 处理数据
-          const products = this.processExcelData(jsonData);
-          resolve(products);
+          const result = this.processExcelData(jsonData);
+          resolve(result);
         } catch (error) {
           console.error('解析Excel文件失败:', error);
           reject(error);
@@ -235,49 +251,160 @@ class ExcelParser {
 
   // 处理Excel数据
   processExcelData(jsonData) {
-    // 跳过表头，从第二行开始处理
-    const products = [];
+    // 设置列映射
+    const columnMappings = {
+      productName: ["商品标题", "商品名称"],
+      productId: ["商品编号", "商品id", "商品ID"],
+      shopName: ["小店"],
+      imageUrl: ["图片链接", "商品图片"],
+      category1: ["一级类目", "一级分类"],
+      category2: ["二级类目", "二级分类"],
+      category3: ["三级类目", "三级分类"],
+      category4: ["四级类目", "四级分类"],
+      productUrl: ["商品链接"],
+      price: [],
+      listTime: ["上架时间", "上新时间"],
+      commission: [],
+      commissionRate: [],
+      commissionTotal: ["预估佣金收入"],
+      dealAmount: ["成交金额"],
+      dealCount: ["成交件数"]
+    };
     
+    // 如果没有数据或者没有表头，返回空数组
+    if (jsonData.length < 2 || !jsonData[0] || !jsonData[0].length) {
+      return [];
+    }
+    
+    // 获取表头行
+    const headers = jsonData[0];
+    
+    // 创建列索引映射
+    const columnIndices = {};
+    
+    // 遍历每个列标题，查找匹配的字段
+    headers.forEach((header, index) => {
+      if (!header) return;
+      
+      const headerText = String(header).trim();
+      
+      // 遍历所有字段映射
+      Object.keys(columnMappings).forEach(field => {
+        // 检查当前列标题是否严格匹配任何字段的可能名称
+        if (columnMappings[field].some(possibleName => {
+          return headerText === possibleName;
+        })) {
+          columnIndices[field] = index;
+        }
+      });
+    });
+    
+    console.log('列映射结果:', columnIndices);
+    
+    // 处理数据行
+    const products = [];
+    let skippedCount = 0;
+    
+    // 从第二行开始处理数据
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
       
-      // 检查行是否有足够的数据
-      if (!row || row.length < 17) continue;
-      
-      // 从商品链接中提取商品ID
-      const productUrl = row[16] || '';
-      let productId = '';
-      
-      // 尝试从URL中提取ID
-      const idMatch = productUrl.match(/id=([\d]+)/);
-      if (idMatch && idMatch[1]) {
-        productId = idMatch[1];
-      } else {
-        // 如果无法从URL提取ID，则跳过该商品
+      // 跳过空行
+      if (!row || !row.length) {
+        skippedCount++;
         continue;
       }
       
-      // 创建商品对象
+      // 初始化商品对象 - 只包含本次导入的字段
       const product = {
-        productId: productId,
-        productName: row[0] || '',  // 第一列：商品标题/名称
-        shopName: row[3] || '',     // 第四列：小店名称
-        imageUrl: row[11] || '',    // 第十二列：图片链接
-        category1: row[12] || '',   // 第十三列：一级类目
-        category2: row[13] || '',   // 第十四列：二级类目
-        category3: row[14] || '',   // 第十五列：三级类目
-        category4: row[15] || '',   // 第十六列：四级类目
-        price: 0,                   // 到手价格，初始为0
-        listTime: row[9] || '',     // 第十列：上新时间/上架时间
-        commission: 0,              // 佣金，初始为0
-        commissionRate: 0,          // 佣金率，初始为0
-        productUrl: productUrl      // 第十七列：商品链接
+        productId: '',
+        productName: '',
+        shopName: '',
+        imageUrl: '',
+        category1: '',
+        category2: '',
+        category3: '',
+        category4: '',
+        price: 0,
+        listTime: '',
+        commission: 0,
+        commissionRate: 0,
+        productUrl: ''
       };
       
+      // 记录哪些字段在本次导入中存在
+      const presentFields = new Set(['productId']);
+      
+      // 临时变量用于计算
+      let dealAmount = 0;
+      let dealCount = 0;
+      let commissionTotal = 0;
+      
+      // 填充商品对象，只添加在本次导入中存在的字段
+      Object.keys(columnIndices).forEach(field => {
+        const index = columnIndices[field];
+        const value = row[index];
+        
+        // 处理特殊字段
+        if (field === 'dealAmount') {
+          dealAmount = parseFloat(value) || 0;
+        } else if (field === 'dealCount') {
+          dealCount = parseInt(value) || 0;
+        } else if (field === 'commissionTotal') {
+          commissionTotal = parseFloat(value) || 0;
+        } else if (field === 'price' || field === 'commission' || field === 'commissionRate') {
+          // 数值字段转换
+          if (value !== undefined && value !== null) {
+            product[field] = parseFloat(value) || 0;
+            presentFields.add(field);
+          }
+        } else if (value !== undefined && value !== null) {
+          // 其他字段直接赋值
+          product[field] = String(value).trim();
+          presentFields.add(field);
+        }
+      });
+      
+      // 如果没有找到productId，尝试从productUrl提取
+      if (!product.productId && product.productUrl) {
+        const idMatch = product.productUrl.match(/id=([\d]+)/);
+        if (idMatch && idMatch[1]) {
+          product.productId = idMatch[1];
+        }
+      }
+      
+      // 如果仍然没有productId，跳过这条记录
+      if (!product.productId) {
+        skippedCount++;
+        continue;
+      }
+      
+      // 计算价格（如果没有直接提供）
+      if (!presentFields.has('price') && dealCount > 0 && dealAmount > 0) {
+        product.price = dealAmount / dealCount;
+        presentFields.add('price');
+      }
+      
+      // 计算佣金（如果没有直接提供）
+      if (!presentFields.has('commission') && dealCount > 0 && commissionTotal > 0) {
+        product.commission = commissionTotal / dealCount;
+        presentFields.add('commission');
+      }
+      
+      // 计算佣金率（如果没有直接提供）
+      if (!presentFields.has('commissionRate') && presentFields.has('price') && presentFields.has('commission') && 
+          product.price > 0 && product.commission > 0) {
+        product.commissionRate = (product.commission / product.price) * 100; // 转换为百分比
+        presentFields.add('commissionRate');
+      }
+      
+      // 添加字段存在标记，用于数据库更新
+      product._presentFields = Array.from(presentFields);
       products.push(product);
     }
     
-    return products;
+    console.log(`导入完成: 成功 ${products.length} 条, 跳过 ${skippedCount} 条`);
+    return { products, skippedCount };
   }
 }
 
@@ -387,18 +514,19 @@ class ProductManager {
       
       // 解析Excel文件
       this.excelParser.setFile(file);
-      const products = await this.excelParser.parseExcel();
+      const result = await this.excelParser.parseExcel();
       
       progressBar.style.width = '60%';
       
       // 导入到数据库
-      const result = await this.db.bulkAddOrUpdateProducts(products);
+      const { products, skippedCount } = result;
+      const result2 = await this.db.bulkAddOrUpdateProducts(products);
       
       progressBar.style.width = '100%';
       
       // 显示导入结果
       document.getElementById('importSummary').textContent = 
-        `成功导入 ${result.added} 个新商品，更新 ${result.updated} 个已有商品。`;
+        `成功导入 ${result2.added} 个新商品，更新 ${result2.updated} 个已有商品。跳过 ${skippedCount} 条无效数据。`;
       document.getElementById('uploadResult').style.display = 'block';
       
       // 显示预览表格
