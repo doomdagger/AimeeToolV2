@@ -92,9 +92,6 @@ class OrderManager {
       const { orders, skippedCount } = result;
       this.orders = orders;
       
-      // 获取商品店铺名称并更新订单数据
-      await this.enrichOrdersWithShopNames();
-      
       progressBar.style.width = '90%';
       
       // 计算汇总数据
@@ -125,29 +122,12 @@ class OrderManager {
     }
   }
 
-  // 根据商品ID获取店铺名称并丰富订单数据
-  async enrichOrdersWithShopNames() {
-    // 获取所有商品数据
-    const products = await this.productDb.getAllProducts();
-    
-    // 创建商品ID到店铺名称的映射
-    const productIdToShopMap = {};
-    products.forEach(product => {
-      productIdToShopMap[product.productId] = product.shopName;
-    });
-    
-    // 更新订单数据中的店铺名称
-    this.orders.forEach(order => {
-      order.shopName = productIdToShopMap[order.productId] || '未知店铺';
-    });
-  }
-
   // 计算汇总数据
   calculateSummary() {
     // 初始化汇总数据
     const summary = {
       totalDealAmount: 0,
-      totalCommission: 0,
+      estimatedTotalCommission: 0,
       statusCounts: {
         '订单付款': 0,
         '订单收货': 0,
@@ -161,7 +141,7 @@ class OrderManager {
     this.orders.forEach(order => {
       // 累加金额
       summary.totalDealAmount += order.dealAmount;
-      summary.totalCommission += order.commissionTotal;
+      summary.estimatedTotalCommission += order.commissionTotal;
       
       // 统计订单状态
       summary.statusCounts[order.orderStatus] = (summary.statusCounts[order.orderStatus] || 0) + 1;
@@ -171,7 +151,7 @@ class OrderManager {
         summary.shopSummary[order.shopName] = {
           shopName: order.shopName,
           totalDealAmount: 0,
-          totalCommission: 0,
+          estimatedTotalCommission: 0,
           orderCount: 0,
           commissionRateSum: 0, // 用于计算平均佣金率
           statusCounts: {
@@ -185,7 +165,7 @@ class OrderManager {
       
       const shopData = summary.shopSummary[order.shopName];
       shopData.totalDealAmount += order.dealAmount;
-      shopData.totalCommission += order.commissionTotal;
+      shopData.estimatedTotalCommission += order.commissionTotal;
       shopData.orderCount++;
       shopData.commissionRateSum += order.commissionRate;
       shopData.statusCounts[order.orderStatus]++;
@@ -193,7 +173,7 @@ class OrderManager {
     
     // 计算平均佣金率
     const averageCommissionRate = this.orders.length > 0 ? 
-      (summary.totalCommission / summary.totalDealAmount) * 100 : 0;
+      (summary.estimatedTotalCommission / summary.totalDealAmount) * 100 : 0;
     
     // 计算退货率
     const completedOrders = summary.statusCounts['订单结算'] + summary.statusCounts['订单退货退款'];
@@ -214,12 +194,12 @@ class OrderManager {
         (shop.statusCounts['订单退货退款'] / shop.orderCount) * 100 : 0;
       
       shop.averageCommissionRate = shop.orderCount > 0 ? 
-        (shop.totalCommission / shop.totalDealAmount) * 100 : 0;
+        (shop.estimatedTotalCommission / shop.totalDealAmount) * 100 : 0;
     });
     
     // 更新UI显示
     document.getElementById('totalDealAmount').textContent = `¥${summary.totalDealAmount.toFixed(2)}`;
-    document.getElementById('totalCommission').textContent = `¥${summary.totalCommission.toFixed(2)}`;
+    document.getElementById('estimatedTotalCommission').textContent = `¥${summary.estimatedTotalCommission.toFixed(2)}`;
     document.getElementById('averageCommissionRate').textContent = `${averageCommissionRate.toFixed(2)}%`;
     
     document.getElementById('statusPaid').textContent = summary.statusCounts['订单付款'] || 0;
@@ -375,14 +355,26 @@ class OrderManager {
     
     // 添加新数据
     Object.values(shopSummary).forEach(shop => {
+      // 计算订单总数
+      const totalOrders = shop.statusCounts['订单付款'] + 
+                         shop.statusCounts['订单收货'] + 
+                         shop.statusCounts['订单退货退款'] + 
+                         shop.statusCounts['订单结算'];
+      
+      // 计算每个状态的百分比
+      const paidPercent = totalOrders > 0 ? (shop.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const receivedPercent = totalOrders > 0 ? (shop.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
+      const refundedPercent = totalOrders > 0 ? (shop.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const settledPercent = totalOrders > 0 ? (shop.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
+      
       this.shopTable.row.add([
         shop.shopName,
-        shop.statusCounts['订单付款'],
-        shop.statusCounts['订单收货'],
-        shop.statusCounts['订单退货退款'],
-        shop.statusCounts['订单结算'],
+        `<span class="order-count">${shop.statusCounts['订单付款']}</span> <span class="order-percent">(${paidPercent}%)</span>`,
+        `<span class="order-count">${shop.statusCounts['订单收货']}</span> <span class="order-percent">(${receivedPercent}%)</span>`,
+        `<span class="order-count">${shop.statusCounts['订单退货退款']}</span> <span class="order-percent">(${refundedPercent}%)</span>`,
+        `<span class="order-count">${shop.statusCounts['订单结算']}</span> <span class="order-percent">(${settledPercent}%)</span>`,
         shop.totalDealAmount,
-        shop.totalCommission,
+        shop.estimatedTotalCommission,
         shop.averageCommissionRate,
         shop.completedRefundRate,
         shop.totalRefundRate
@@ -580,6 +572,7 @@ class OrderExcelParser {
       orderId: ["订单id", "订单ID", "订单编号"],
       productId: ["商品id", "商品ID", "商品编号"],
       productName: ["商品名称", "商品标题"],
+      shopName: ["店铺名称"],
       orderStatus: ["订单状态"],
       dealAmount: ["成交金额"],
       commissionRate: ["佣金率"],
@@ -638,7 +631,7 @@ class OrderExcelParser {
         orderId: '',
         productId: '',
         productName: '',
-        shopName: '', // 将在后续处理中填充
+        shopName: '', 
         orderStatus: '',
         dealAmount: 0,
         commissionRate: 0,
