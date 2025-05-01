@@ -351,7 +351,7 @@
           <div class="card-body">
             <!-- 总体数据卡片 -->
             <div class="row mb-4">
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="summary-card bg-primary text-white">
                   <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
                   <div class="summary-content">
@@ -360,16 +360,34 @@
                   </div>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-2">
                 <div class="summary-card bg-success text-white">
-                  <div class="summary-icon"><i class="bi bi-currency-yen"></i></div>
+                  <div class="summary-icon"><i class="bi bi-check-circle"></i></div>
                   <div class="summary-content">
-                    <h3 id="estimatedTotalCommission">¥0.00</h3>
-                    <p>预估总佣金收入</p>
+                    <h3 id="settledCommission">¥0.00</h3>
+                    <p>已结算佣金</p>
                   </div>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-2">
+                <div class="summary-card bg-warning text-white">
+                  <div class="summary-icon"><i class="bi bi-hourglass-split"></i></div>
+                  <div class="summary-content">
+                    <h3 id="unsettledCommission">¥0.00</h3>
+                    <p>未结算佣金</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="summary-card bg-danger text-white">
+                  <div class="summary-icon"><i class="bi bi-arrow-return-left"></i></div>
+                  <div class="summary-content">
+                    <h3 id="refundedCommission">¥0.00</h3>
+                    <p>已退款佣金</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
                 <div class="summary-card bg-info text-white">
                   <div class="summary-icon"><i class="bi bi-percent"></i></div>
                   <div class="summary-content">

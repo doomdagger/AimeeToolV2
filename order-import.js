@@ -127,7 +127,11 @@ class OrderManager {
     // 初始化汇总数据
     const summary = {
       totalDealAmount: 0,
-      estimatedTotalCommission: 0,
+      commissionByStatus: {
+        settled: 0,     // 已结算佣金
+        unsettled: 0,   // 未结算佣金
+        refunded: 0     // 已退款佣金
+      },
       statusCounts: {
         '订单付款': 0,
         '订单收货': 0,
@@ -141,7 +145,15 @@ class OrderManager {
     this.orders.forEach(order => {
       // 累加金额
       summary.totalDealAmount += order.dealAmount;
-      summary.estimatedTotalCommission += order.commissionTotal;
+      
+      // 按订单状态累加佣金
+      if (order.orderStatus === '订单结算') {
+        summary.commissionByStatus.settled += order.commissionTotal;
+      } else if (order.orderStatus === '订单退货退款') {
+        summary.commissionByStatus.refunded += order.commissionTotal;
+      } else if (order.orderStatus === '订单付款' || order.orderStatus === '订单收货') {
+        summary.commissionByStatus.unsettled += order.commissionTotal;
+      }
       
       // 统计订单状态
       summary.statusCounts[order.orderStatus] = (summary.statusCounts[order.orderStatus] || 0) + 1;
@@ -171,10 +183,6 @@ class OrderManager {
       shopData.statusCounts[order.orderStatus]++;
     });
     
-    // 计算平均佣金率
-    const averageCommissionRate = this.orders.length > 0 ? 
-      (summary.estimatedTotalCommission / summary.totalDealAmount) * 100 : 0;
-    
     // 计算退货率
     const completedOrders = summary.statusCounts['订单结算'] + summary.statusCounts['订单退货退款'];
     const completedRefundRate = completedOrders > 0 ? 
@@ -183,6 +191,14 @@ class OrderManager {
     const totalOrders = this.orders.length;
     const totalRefundRate = totalOrders > 0 ? 
       (summary.statusCounts['订单退货退款'] / totalOrders) * 100 : 0;
+    
+    // 计算平均佣金率
+    const estimatedTotalCommission = summary.commissionByStatus.settled + 
+                                  summary.commissionByStatus.unsettled + 
+                                  summary.commissionByStatus.refunded;
+    
+    const averageCommissionRate = summary.totalDealAmount > 0 ? 
+      (estimatedTotalCommission / summary.totalDealAmount) * 100 : 0;
     
     // 计算店铺退货率
     Object.values(summary.shopSummary).forEach(shop => {
@@ -195,12 +211,14 @@ class OrderManager {
         (shop.statusCounts['订单退货退款'] / shop.orderCount) * 100 : 0;
       
       shop.averageCommissionRate = shop.orderCount > 0 ? 
-        (shop.estimatedTotalCommission / shop.totalDealAmount) * 100 : 0;
+        (shop.commissionRateSum / shop.orderCount) : 0;
     });
     
     // 更新UI显示
     document.getElementById('totalDealAmount').textContent = `¥${summary.totalDealAmount.toFixed(2)}`;
-    document.getElementById('estimatedTotalCommission').textContent = `¥${summary.estimatedTotalCommission.toFixed(2)}`;
+    document.getElementById('settledCommission').textContent = `¥${summary.commissionByStatus.settled.toFixed(2)}`;
+    document.getElementById('unsettledCommission').textContent = `¥${summary.commissionByStatus.unsettled.toFixed(2)}`;
+    document.getElementById('refundedCommission').textContent = `¥${summary.commissionByStatus.refunded.toFixed(2)}`;
     document.getElementById('averageCommissionRate').textContent = `${averageCommissionRate.toFixed(2)}%`;
     
     document.getElementById('statusPaid').textContent = summary.statusCounts['订单付款'] || 0;
@@ -221,13 +239,13 @@ class OrderManager {
   // 应用订单状态卡片样式
   applyStatusCardStyles() {
     // 应用订单状态卡片样式
-    const statusPaid = document.querySelector('.status-paid');
+    const statusPaid = document.querySelector('.status-received');
     if (statusPaid) {
       statusPaid.style.backgroundColor = '#e3f2fd'; // 蓝色
       statusPaid.style.borderLeft = '4px solid #1976d2';
     }
     
-    const statusReceived = document.querySelector('.status-received');
+    const statusReceived = document.querySelector('.status-settled');
     if (statusReceived) {
       statusReceived.style.backgroundColor = '#e8f5e9'; // 绿色
       statusReceived.style.borderLeft = '4px solid #388e3c';
@@ -239,7 +257,7 @@ class OrderManager {
       statusRefunded.style.borderLeft = '4px solid #d32f2f';
     }
     
-    const statusSettled = document.querySelector('.status-settled');
+    const statusSettled = document.querySelector('.status-paid');
     if (statusSettled) {
       statusSettled.style.backgroundColor = '#fff8e1'; // 黄色
       statusSettled.style.borderLeft = '4px solid #ffa000';
@@ -510,10 +528,10 @@ class OrderManager {
     
     // 颜色配置
     const backgroundColor = [
-      '#1976d2', // 订单付款 - 蓝色
-      '#388e3c', // 订单收货 - 绿色
+      '#ffa000', // 订单付款 - 蓝色
+      '#1976d2', // 订单收货 - 绿色
       '#d32f2f', // 订单退货退款 - 红色
-      '#ffa000'  // 订单结算 - 黄色
+      '#388e3c'  // 订单结算 - 黄色
     ];
     
     // 创建图表
