@@ -186,7 +186,8 @@ class OrderManager {
     
     // 计算店铺退货率
     Object.values(summary.shopSummary).forEach(shop => {
-      const shopCompletedOrders = shop.statusCounts['订单结算'] + shop.statusCounts['订单退货退款'];
+      const shopCompletedOrders = shop.statusCounts['订单结算'] + 
+                         shop.statusCounts['订单退货退款'];
       shop.completedRefundRate = shopCompletedOrders > 0 ? 
         (shop.statusCounts['订单退货退款'] / shopCompletedOrders) * 100 : 0;
       
@@ -304,15 +305,22 @@ class OrderManager {
           defaultContent: '-'
         },
         {
-          targets: [5, 6], // 交易额列
+          targets: [5], // 交易额列
           render: function(data) {
             return `¥${parseFloat(data).toFixed(2)}`;
           }
         },
         {
-          targets: [7, 8, 9], // 佣金率列
+          targets: [6, 7, 8], // 佣金率列
           render: function(data) {
             return `${parseFloat(data).toFixed(2)}%`;
+          }
+        },
+        {
+          // 处理HTML内容在订单状态列
+          targets: [1, 2, 3, 4],
+          render: function(data) {
+            return data;
           }
         }
       ]
@@ -367,14 +375,55 @@ class OrderManager {
       const refundedPercent = totalOrders > 0 ? (shop.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
       const settledPercent = totalOrders > 0 ? (shop.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
       
+      // 计算每个状态的佣金
+      const statusCommission = {};
+      let totalCommission = 0;
+      
+      // 遍历订单数据计算每个状态的佣金
+      this.orders.forEach(order => {
+        if (order.shopName === shop.shopName) {
+          statusCommission[order.orderStatus] = (statusCommission[order.orderStatus] || 0) + order.commissionTotal;
+          totalCommission += order.commissionTotal;
+        }
+      });
+      
+      // 显示佣金数据
+      const paidCommission = statusCommission['订单付款'] || 0;
+      const receivedCommission = statusCommission['订单收货'] || 0;
+      const refundedCommission = statusCommission['订单退货退款'] || 0;
+      const settledCommission = statusCommission['订单结算'] || 0;
+      
       this.shopTable.row.add([
         shop.shopName,
-        `<span class="order-count">${shop.statusCounts['订单付款']}</span> <span class="order-percent">(${paidPercent}%)</span>`,
-        `<span class="order-count">${shop.statusCounts['订单收货']}</span> <span class="order-percent">(${receivedPercent}%)</span>`,
-        `<span class="order-count">${shop.statusCounts['订单退货退款']}</span> <span class="order-percent">(${refundedPercent}%)</span>`,
-        `<span class="order-count">${shop.statusCounts['订单结算']}</span> <span class="order-percent">(${settledPercent}%)</span>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${shop.statusCounts['订单付款']}</span> 
+             <span class="order-percent">(${paidPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${paidCommission.toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${shop.statusCounts['订单收货']}</span> 
+             <span class="order-percent">(${receivedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${receivedCommission.toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${shop.statusCounts['订单退货退款']}</span> 
+             <span class="order-percent">(${refundedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${refundedCommission.toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${shop.statusCounts['订单结算']}</span> 
+             <span class="order-percent">(${settledPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${settledCommission.toFixed(2)}</span>
+         </div>`,
         shop.totalDealAmount,
-        shop.estimatedTotalCommission,
         shop.averageCommissionRate,
         shop.completedRefundRate,
         shop.totalRefundRate
