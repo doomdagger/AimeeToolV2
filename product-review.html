@@ -120,6 +120,64 @@
       overflow-x: auto;
       padding-bottom: 5px;
     }
+    .summary-card {
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .summary-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .summary-content {
+      text-align: center;
+    }
+    .summary-content h3 {
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .status-cards {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .status-card {
+      width: 120px;
+      margin: 10px;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .status-count {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .status-label {
+      font-size: 14px;
+      color: #666;
+    }
+    .refund-rate-card {
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .refund-rate-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .refund-rate-value {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .refund-rate-desc {
+      font-size: 14px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -239,9 +297,163 @@
         <div class="card">
           <div class="card-header">订单导入</div>
           <div class="card-body">
-            <div class="alert alert-info">
-              <i class="bi bi-info-circle-fill me-2"></i>
-              订单导入功能正在开发中，敬请期待！
+            <div class="upload-area" id="orderUploadArea">
+              <div class="upload-icon">
+                <i class="bi bi-file-earmark-spreadsheet"></i>
+              </div>
+              <h5>拖拽或点击上传订单 Excel 文件</h5>
+              <p class="text-muted">支持 .xlsx 格式</p>
+              <input type="file" id="orderExcelFileInput" accept=".xlsx" style="display: none;">
+              <button class="btn btn-primary" id="orderSelectFileBtn">选择文件</button>
+            </div>
+            
+            <div id="orderUploadProgress" class="progress mb-3" style="display: none;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            
+            <div id="orderUploadResult" style="display: none;">
+              <div class="alert alert-success mb-3">
+                <strong>订单文件上传成功!</strong> <span id="orderImportSummary"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 订单数据汇总 -->
+        <div class="card mt-4" id="orderSummaryCard" style="display: none;">
+          <div class="card-header">
+            <i class="bi bi-bar-chart-fill me-2"></i>订单数据汇总
+          </div>
+          <div class="card-body">
+            <!-- 总体数据卡片 -->
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <div class="summary-card bg-primary text-white">
+                  <div class="summary-icon"><i class="bi bi-cash-stack"></i></div>
+                  <div class="summary-content">
+                    <h3 id="totalDealAmount">¥0.00</h3>
+                    <p>总成交金额</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="summary-card bg-success text-white">
+                  <div class="summary-icon"><i class="bi bi-currency-yen"></i></div>
+                  <div class="summary-content">
+                    <h3 id="totalCommission">¥0.00</h3>
+                    <p>总佣金收入</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="summary-card bg-info text-white">
+                  <div class="summary-icon"><i class="bi bi-percent"></i></div>
+                  <div class="summary-content">
+                    <h3 id="averageCommissionRate">0.00%</h3>
+                    <p>平均佣金率</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 订单状态分布 -->
+            <div class="row">
+              <div class="col-12">
+                <h5 class="mb-3"><i class="bi bi-pie-chart-fill me-2"></i>订单状态分布</h5>
+                <div class="status-cards">
+                  <div class="status-card status-paid">
+                    <div class="status-count" id="statusPaid">0</div>
+                    <div class="status-label">订单付款</div>
+                  </div>
+                  <div class="status-card status-received">
+                    <div class="status-count" id="statusReceived">0</div>
+                    <div class="status-label">订单收货</div>
+                  </div>
+                  <div class="status-card status-refunded">
+                    <div class="status-count" id="statusRefunded">0</div>
+                    <div class="status-label">订单退货退款</div>
+                  </div>
+                  <div class="status-card status-settled">
+                    <div class="status-count" id="statusSettled">0</div>
+                    <div class="status-label">订单结算</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 退货率信息 -->
+            <div class="row mt-4">
+              <div class="col-md-6">
+                <div class="refund-rate-card">
+                  <div class="refund-rate-title">完结订单退货率</div>
+                  <div class="refund-rate-value" id="completedRefundRate">0.00%</div>
+                  <div class="refund-rate-desc">已结算和退货退款订单中的退货比例</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="refund-rate-card">
+                  <div class="refund-rate-title">全部订单退货率</div>
+                  <div class="refund-rate-value" id="totalRefundRate">0.00%</div>
+                  <div class="refund-rate-desc">所有订单中的退货比例</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 店铺数据列表 -->
+        <div class="card mt-4" id="shopTableCard" style="display: none;">
+          <div class="card-header">
+            <i class="bi bi-shop me-2"></i>店铺数据列表
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="shopTable">
+                <thead>
+                  <tr>
+                    <th>店铺名称</th>
+                    <th>付款订单数</th>
+                    <th>收货订单数</th>
+                    <th>退货退款订单数</th>
+                    <th>结算订单数</th>
+                    <th>店铺总成交额</th>
+                    <th>店铺总佣金</th>
+                    <th>店铺平均佣金率</th>
+                    <th>完结订单退货率</th>
+                    <th>全部订单退货率</th>
+                  </tr>
+                </thead>
+                <tbody id="shopTableBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 订单数据列表 -->
+        <div class="card mt-4" id="orderTableCard" style="display: none;">
+          <div class="card-header">订单数据列表</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="orderTable">
+                <thead>
+                  <tr>
+                    <th>订单ID</th>
+                    <th>商品ID</th>
+                    <th>商品名称</th>
+                    <th>店铺名称</th>
+                    <th>订单状态</th>
+                    <th>成交金额</th>
+                    <th>佣金率</th>
+                    <th>总佣金收入</th>
+                    <th>预估佣金收入-达人</th>
+                    <th>订单支付时间</th>
+                    <th>流量来源</th>
+                  </tr>
+                </thead>
+                <tbody id="orderTableBody">
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -354,6 +566,7 @@
   <script src="datatables.bootstrap5.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <script src="product-review.js"></script>
+  <script src="order-import.js"></script>
   
   <!-- 消息提示容器 -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
