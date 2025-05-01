@@ -1,22 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // 从 storage 获取 live_room_id
-  chrome.storage.local.get(['currentLiveRoomId'], function(result) {
-    if (!result.currentLiveRoomId) {
-      document.body.innerHTML = '<div class="alert alert-danger" style="margin: 20px;">Error: No live room ID found</div>';
-      return;
-    }
-
-    // 初始化页面
-    initializePage(result.currentLiveRoomId);
-  });
+  // 初始化页面
+  initializePage();
 
   // 绑定筛选按钮事件
   document.getElementById('applyFilters').addEventListener('click', function() {
-    chrome.storage.local.get(['currentLiveRoomId'], function(result) {
-      if (result.currentLiveRoomId) {
-        loadProductReviewData(result.currentLiveRoomId);
-      }
-    });
+    loadProductReviewData();
   });
 
   document.getElementById('resetFilters').addEventListener('click', function() {
@@ -24,22 +12,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('productTypeFilter').value = 'all';
     document.getElementById('sortFilter').value = 'sales';
     
-    chrome.storage.local.get(['currentLiveRoomId'], function(result) {
-      if (result.currentLiveRoomId) {
-        loadProductReviewData(result.currentLiveRoomId);
-      }
-    });
+    loadProductReviewData();
   });
 });
 
 // 初始化页面
-function initializePage(liveRoomId) {
+function initializePage() {
   // 加载商品回顾数据
-  loadProductReviewData(liveRoomId);
+  loadProductReviewData();
 }
 
 // 加载商品回顾数据
-function loadProductReviewData(liveRoomId) {
+function loadProductReviewData() {
   // 获取筛选条件
   const timeRange = document.getElementById('timeRangeFilter').value;
   const productType = document.getElementById('productTypeFilter').value;
