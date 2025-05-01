@@ -19,9 +19,6 @@
     "default_popup": "popup.html",
     "default_icon": "icon48.png"
   },
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https: http: data:"
   },

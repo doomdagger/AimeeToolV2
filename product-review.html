@@ -15,7 +15,7 @@
       background-color: #f8f9fa;
     }
     .container-fluid {
-      max-width: 1600px;
+      max-width: 1800px;
       margin: 0 auto;
       padding: 0 20px;
     }
@@ -47,6 +47,7 @@
     }
     .table {
       width: 100% !important;
+      min-width: 1500px;
       margin: 0 auto;
       background-color: white;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -114,6 +115,10 @@
     }
     .image-column {
       width: 100px;
+    }
+    .table-responsive {
+      overflow-x: auto;
+      padding-bottom: 5px;
     }
   </style>
 </head>
@@ -195,6 +200,7 @@
             <span>商品列表</span>
             <div>
               <button class="btn btn-danger" id="deleteSelectedBtn" disabled>删除选中</button>
+              <button class="btn btn-danger" id="deleteAllBtn" style="margin-left: 10px;"><i class="bi bi-trash"></i> 删除所有商品</button>
             </div>
           </div>
           <div class="card-body">
@@ -322,6 +328,25 @@
     </div>
   </div>
   
+  <!-- 删除确认模态框 -->
+  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="deleteConfirmModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>删除确认</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteConfirmMessage">您确定要删除该商品吗？</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" autofocus>取消</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- JavaScript 依赖 -->
   <script src="jquery.min.js"></script>
   <script src="bootstrap.bundle.min.js"></script>
@@ -336,25 +361,6 @@
       <div class="d-flex">
         <div class="toast-body" id="toastMessage"></div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- 删除确认模态框 -->
-  <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title" id="deleteConfirmModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>删除确认</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p id="deleteConfirmMessage">您确定要删除该商品吗？</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
-        </div>
       </div>
     </div>
   </div>

@@ -482,6 +482,7 @@ class ProductManager {
     // 商品列表相关
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
     
     // 全选/取消全选
     selectAllCheckbox.addEventListener('change', () => {
@@ -496,6 +497,11 @@ class ProductManager {
     // 删除选中商品
     deleteSelectedBtn.addEventListener('click', () => {
       this.deleteSelectedProducts();
+    });
+    
+    // 删除所有商品
+    deleteAllBtn.addEventListener('click', () => {
+      this.deleteAllProducts();
     });
     
     // 保存编辑商品
@@ -562,10 +568,10 @@ class ProductManager {
         <td>${this.escapeHtml(product.category2)}</td>
         <td>${this.escapeHtml(product.category3)}</td>
         <td>${this.escapeHtml(product.category4)}</td>
-        <td>${product.price}</td>
+        <td>${product.price.toFixed(2)}</td>
         <td>${product.listTime}</td>
-        <td>${product.commission}</td>
-        <td>${product.commissionRate}</td>
+        <td>${product.commission.toFixed(2)}</td>
+        <td>${product.commissionRate.toFixed(2)}%</td>
         <td><a href="${product.productUrl}" target="_blank">查看</a></td>
       `;
       
@@ -625,10 +631,10 @@ class ProductManager {
         this.escapeHtml(product.category2),
         this.escapeHtml(product.category3),
         this.escapeHtml(product.category4),
-        product.price,
+        product.price.toFixed(2),
         product.listTime,
-        product.commission,
-        product.commissionRate,
+        product.commission.toFixed(2),
+        product.commissionRate.toFixed(2) + '%',
         `<button class="btn btn-sm btn-primary btn-action edit-product" data-id="${product.productId}">编辑</button>
          <button class="btn btn-sm btn-danger btn-action delete-product" data-id="${product.productId}">删除</button>`
       ]);
@@ -758,7 +764,8 @@ class ProductManager {
   // 删除商品
   async deleteProduct(productId) {
     // 显示确认模态框
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    const modalElement = document.getElementById('deleteConfirmModal');
+    const modal = new bootstrap.Modal(modalElement);
     document.getElementById('deleteConfirmMessage').textContent = `您确定要删除这个商品吗？`;
     
     // 设置确认按钮事件监听器
@@ -788,8 +795,20 @@ class ProductManager {
     // 添加事件监听器
     confirmBtn.addEventListener('click', confirmHandler);
     
+    // 添加模态框隐藏事件监听器
+    const handleModalHidden = () => {
+      confirmBtn.removeEventListener('click', confirmHandler);
+      modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+    };
+    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+    
     // 显示模态框
     modal.show();
+    
+    // 设置模态框显示事件监听器
+    modalElement.addEventListener('shown.bs.modal', () => {
+      document.querySelector('#deleteConfirmModal .btn-secondary').focus();
+    }, { once: true });
   }
 
   // 删除选中的商品
@@ -802,7 +821,8 @@ class ProductManager {
     }
     
     // 显示确认模态框
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    const modalElement = document.getElementById('deleteConfirmModal');
+    const modal = new bootstrap.Modal(modalElement);
     document.getElementById('deleteConfirmMessage').textContent = `您确定要删除选中的 ${checkboxes.length} 个商品吗？`;
     
     // 设置确认按钮事件监听器
@@ -837,8 +857,88 @@ class ProductManager {
     // 添加事件监听器
     confirmBtn.addEventListener('click', confirmHandler);
     
+    // 添加模态框隐藏事件监听器
+    const handleModalHidden = () => {
+      confirmBtn.removeEventListener('click', confirmHandler);
+      modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+    };
+    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+    
     // 显示模态框
     modal.show();
+    
+    // 设置模态框显示事件监听器
+    modalElement.addEventListener('shown.bs.modal', () => {
+      document.querySelector('#deleteConfirmModal .btn-secondary').focus();
+    }, { once: true });
+  }
+
+  // 删除所有商品
+  async deleteAllProducts() {
+    try {
+      // 获取所有商品
+      const products = await this.db.getAllProducts();
+      
+      if (products.length === 0) {
+        this.showToast('没有商品可删除', 'warning');
+        return;
+      }
+      
+      // 显示确认模态框
+      const modalElement = document.getElementById('deleteConfirmModal');
+      const modal = new bootstrap.Modal(modalElement);
+      document.getElementById('deleteConfirmMessage').textContent = `您确定要删除所有 ${products.length} 个商品吗？此操作不可恢复！`;
+      
+      // 设置确认按钮事件监听器
+      const confirmBtn = document.getElementById('confirmDeleteBtn');
+      const confirmHandler = async () => {
+        try {
+          // 关闭模态框
+          modal.hide();
+          
+          // 获取所有商品ID
+          const productIds = products.map(product => product.productId);
+          
+          // 批量删除商品
+          const deletedCount = await this.db.bulkDeleteProducts(productIds);
+          
+          // 重新加载商品列表
+          this.loadProducts();
+          document.getElementById('selectAllCheckbox').checked = false;
+          this.updateDeleteButtonState();
+          
+          // 显示删除成功提示
+          this.showToast(`成功删除所有 ${deletedCount} 个商品`, 'success');
+        } catch (error) {
+          console.error('删除所有商品失败:', error);
+          this.showToast(`删除所有商品失败: ${error.message}`, 'danger');
+        }
+        
+        // 移除事件监听器
+        confirmBtn.removeEventListener('click', confirmHandler);
+      };
+      
+      // 添加事件监听器
+      confirmBtn.addEventListener('click', confirmHandler);
+      
+      // 添加模态框隐藏事件监听器
+      const handleModalHidden = () => {
+        confirmBtn.removeEventListener('click', confirmHandler);
+        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+      };
+      modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+      
+      // 显示模态框
+      modal.show();
+      
+      // 设置模态框显示事件监听器
+      modalElement.addEventListener('shown.bs.modal', () => {
+        document.querySelector('#deleteConfirmModal .btn-secondary').focus();
+      }, { once: true });
+    } catch (error) {
+      console.error('获取商品列表失败:', error);
+      this.showToast(`获取商品列表失败: ${error.message}`, 'danger');
+    }
   }
 
   // 格式化日期时间为input元素可用的格式
@@ -898,4 +998,58 @@ class ProductManager {
 document.addEventListener('DOMContentLoaded', () => {
   const productManager = new ProductManager();
   productManager.init();
+  
+  // 修复模态框的访问性问题
+  const fixModalAccessibility = () => {
+    // 监听模态框显示事件
+    document.addEventListener('shown.bs.modal', (event) => {
+      const modal = event.target;
+      
+      // 移除 aria-hidden 属性
+      if (modal.hasAttribute('aria-hidden')) {
+        modal.removeAttribute('aria-hidden');
+      }
+      
+      // 确保取消按钮获得焦点
+      setTimeout(() => {
+        const cancelButton = modal.querySelector('.btn-secondary');
+        if (cancelButton) {
+          cancelButton.focus();
+        }
+      }, 50);
+    });
+    
+    // 监听模态框关闭事件
+    document.addEventListener('hide.bs.modal', (event) => {
+      const modal = event.target;
+      
+      // 移除 aria-hidden 属性
+      if (modal.hasAttribute('aria-hidden')) {
+        modal.removeAttribute('aria-hidden');
+      }
+    });
+    
+    // 监听属性变化
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && 
+            mutation.attributeName === 'aria-hidden' && 
+            mutation.target.classList.contains('modal')) {
+          // 如果模态框有聚焦元素并且属性为 aria-hidden="true"
+          if (mutation.target.getAttribute('aria-hidden') === 'true' && 
+              mutation.target.contains(document.activeElement)) {
+            mutation.target.removeAttribute('aria-hidden');
+          }
+        }
+      });
+    });
+    
+    // 观察所有模态框
+    document.querySelectorAll('.modal').forEach(modal => {
+      observer.observe(modal, { attributes: true });
+    });
+  };
+  
+  // 调用修复函数
+  fixModalAccessibility();
 });
