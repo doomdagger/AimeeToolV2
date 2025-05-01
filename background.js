@@ -7,24 +7,6 @@ function showNotification(message) {
   });
 }
 
-chrome.action.onClicked.addListener((tab) => {
-  // 直接检查 URL 中是否包含 live_room_id=
-  const liveRoomId = tab.url.match(/live_room_id=([^&]+)/)?.[1];
-  
-  if (liveRoomId) {
-    // 将 live_room_id 存储到 storage 中
-    chrome.storage.local.set({ currentLiveRoomId: liveRoomId }, () => {
-      // 打开新标签页显示数据
-      chrome.tabs.create({ url: 'index.html' });
-    });
-  } else {
-    // 使用 chrome.tabs.create 显示错误信息
-    chrome.tabs.create({ 
-      url: 'index.html?error=请打开一个包含直播ID的页面后再使用此插件'
-    });
-  }
-});
-
 // 注册Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

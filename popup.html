@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Aimee Tool Compass</title>
+  <link href="bootstrap.min.css" rel="stylesheet">
+  <link href="bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      padding: 0;
+      margin: 0;
+      background-color: #f8f9fa;
+    }
+    
+    .popup-header {
+      background: linear-gradient(135deg, #1890ff, #69c0ff);
+      color: white;
+      padding: 15px 20px;
+      font-size: 18px;
+      font-weight: 500;
+      border-radius: 0 0 10px 10px;
+      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    
+    .menu-list {
+      list-style: none;
+      padding: 0 15px 15px;
+      margin: 0;
+    }
+    
+    .menu-item {
+      margin-bottom: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      transition: all 0.2s ease;
+      background-color: white;
+    }
+    
+    .menu-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+    }
+    
+    .menu-link {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      color: #333;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .menu-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .menu-text {
+      flex: 1;
+    }
+    
+    .menu-arrow {
+      color: #999;
+      font-size: 14px;
+    }
+    
+    .menu-item:nth-child(1) .menu-icon {
+      color: #1890ff;
+    }
+    
+    .menu-item:nth-child(2) .menu-icon {
+      color: #52c41a;
+    }
+    
+    footer {
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+      color: #999;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-header">
+    Aimee Tool Compass
+  </div>
+  
+  <ul class="menu-list">
+    <li class="menu-item">
+      <a href="#" class="menu-link" id="productAnalysis">
+        <div class="menu-icon">📊</div>
+        <div class="menu-text">商品分析和订单列表</div>
+        <div class="menu-arrow">›</div>
+      </a>
+    </li>
+    <li class="menu-item">
+      <a href="#" class="menu-link" id="productReview">
+        <div class="menu-icon">🔍</div>
+        <div class="menu-text">商品回顾</div>
+        <div class="menu-arrow">›</div>
+      </a>
+    </li>
+  </ul>
+  
+  <footer>
+    © 2025 Aimee Tool Compass
+  </footer>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
