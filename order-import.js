@@ -348,22 +348,32 @@ class OrderManager {
           defaultContent: '-'
         },
         {
+          targets: [1, 2, 3, 4], // 订单状态列
+          render: function(data, type, row) {
+            // 当类型为'sort'时，返回订单数量
+            if (type === 'sort' || type === 'type') {
+              const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
+              return match ? parseFloat(match[1]) : 0;
+            }
+            return data;
+          }
+        },
+        {
           targets: [5], // 交易额列
-          render: function(data) {
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') {
+              return parseFloat(data);
+            }
             return `¥${parseFloat(data).toFixed(2)}`;
           }
         },
         {
           targets: [6, 7, 8], // 佣金率列
-          render: function(data) {
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') {
+              return parseFloat(data);
+            }
             return `${parseFloat(data).toFixed(2)}%`;
-          }
-        },
-        {
-          // 处理HTML内容在订单状态列
-          targets: [1, 2, 3, 4],
-          render: function(data) {
-            return data;
           }
         }
       ]
@@ -611,22 +621,32 @@ class OrderManager {
             }
           },
           {
+            targets: [2, 3, 4, 5], // 订单状态列
+            render: function(data, type, row) {
+              // 当类型为'sort'时，返回订单数量
+              if (type === 'sort' || type === 'type') {
+                const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
+                return match ? parseFloat(match[1]) : 0;
+              }
+              return data;
+            }
+          },
+          {
             targets: [6], // 交易额列
-            render: function(data) {
+            render: function(data, type) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(data);
+              }
               return `¥${parseFloat(data).toFixed(2)}`;
             }
           },
           {
             targets: [7, 8, 9], // 佣金率列
-            render: function(data) {
+            render: function(data, type) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(data);
+              }
               return `${parseFloat(data).toFixed(2)}%`;
-            }
-          },
-          {
-            // 处理HTML内容在订单状态列
-            targets: [2, 3, 4, 5],
-            render: function(data) {
-              return data;
             }
           }
         ]
@@ -984,9 +1004,8 @@ class OrderExcelParser {
             order[field] = parseFloat(value) || 0;
           } else if (field === 'commissionRate') {
             // 处理百分比
-            const rate = parseFloat(value) || 0;
-            // 如果值大于1，假设它已经是百分比形式（例如20而不是0.2）
-            order[field] = rate > 1 ? rate : rate * 100;
+            const cleanValue = String(value).replace('%', '');
+            order[field] = parseFloat(cleanValue) || 0;
           } else {
             // 其他字段直接赋值
             order[field] = String(value).trim();
