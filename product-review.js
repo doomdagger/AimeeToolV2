@@ -557,7 +557,7 @@ class ProductManager {
         <td>${product.productId}</td>
         <td>${this.escapeHtml(product.productName)}</td>
         <td>${this.escapeHtml(product.shopName)}</td>
-        <td><img src="${product.imageUrl}" class="product-image" data-fallback="icon48.png" /></td>
+        <td><img src="${product.imageUrl || 'icon48.png'}" class="product-image" onerror="this.src='icon48.png'" /></td>
         <td>${this.escapeHtml(product.category1)}</td>
         <td>${this.escapeHtml(product.category2)}</td>
         <td>${this.escapeHtml(product.category3)}</td>
@@ -570,14 +570,6 @@ class ProductManager {
       `;
       
       tableBody.appendChild(row);
-    });
-    
-    // 添加图片错误事件监听器
-    document.querySelectorAll('#previewTableBody .product-image').forEach(image => {
-      image.addEventListener('error', () => {
-        const fallbackSrc = image.getAttribute('data-fallback');
-        image.src = fallbackSrc;
-      });
     });
   }
 
@@ -625,7 +617,7 @@ class ProductManager {
     products.forEach(product => {
       this.productTable.row.add([
         `<input type="checkbox" class="product-checkbox" data-id="${product.productId}">`,
-        `<img src="${product.imageUrl}" class="product-image" data-fallback="icon48.png" />`,
+        `<img src="${product.imageUrl || 'icon48.png'}" class="product-image" onerror="this.src='icon48.png'" />`,
         product.productId,
         this.escapeHtml(product.productName),
         this.escapeHtml(product.shopName),
