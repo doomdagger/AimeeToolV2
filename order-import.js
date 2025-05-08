@@ -410,39 +410,86 @@ class OrderManager {
   }
 
   // 显示店铺数据表格
-  displayShopTable(shopSummary) {
+  displayShopTable(shopSummary, trafficSourceFilter = 'all') {
     // 清空现有表格数据
     this.shopTable.clear();
     
+    // 创建或更新流量来源切换按钮
+    this.createTrafficSourceToggle();
+    
     // 添加新数据
     Object.values(shopSummary).forEach(shop => {
+      // 根据流量来源筛选订单
+      const filteredOrders = this.orders.filter(order => {
+        if (trafficSourceFilter === 'all') {
+          return order.shopName === shop.shopName;
+        } else if (trafficSourceFilter === 'live') {
+          return order.shopName === shop.shopName && order.trafficSource === '直播';
+        } else if (trafficSourceFilter === 'showcase') {
+          return order.shopName === shop.shopName && order.trafficSource === '橱窗';
+        }
+        return false;
+      });
+      
+      // 如果没有符合条件的订单，跳过这个店铺
+      if (filteredOrders.length === 0) {
+        return;
+      }
+      
+      // 计算该店铺在当前筛选条件下的状态计数
+      const statusCounts = {
+        '订单付款': 0,
+        '订单收货': 0,
+        '订单退货退款': 0,
+        '订单结算': 0
+      };
+      
+      // 计算每个状态的佣金
+      const statusCommission = {
+        '订单付款': 0,
+        '订单收货': 0,
+        '订单退货退款': 0,
+        '订单结算': 0
+      };
+      
+      // 计算总交易额
+      let totalDealAmount = 0;
+      let commissionRateSum = 0;
+      
+      // 遍历筛选后的订单数据计算汇总
+      filteredOrders.forEach(order => {
+        statusCounts[order.orderStatus]++;
+        statusCommission[order.orderStatus] += order.commissionTotal;
+        totalDealAmount += order.dealAmount;
+        commissionRateSum += order.commissionRate;
+      });
+      
       // 计算订单总数
-      const totalOrders = shop.statusCounts['订单付款'] + 
-                         shop.statusCounts['订单收货'] + 
-                         shop.statusCounts['订单退货退款'] + 
-                         shop.statusCounts['订单结算'];
+      const totalOrders = statusCounts['订单付款'] + 
+                         statusCounts['订单收货'] + 
+                         statusCounts['订单退货退款'] + 
+                         statusCounts['订单结算'];
       
       // 计算每个状态的百分比
       const paidPercent = totalOrders > 0 ? 
-        (shop.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
+        (statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
       const receivedPercent = totalOrders > 0 ? 
-        (shop.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
+        (statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
       const refundedPercent = totalOrders > 0 ? 
-        (shop.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
+        (statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
       const settledPercent = totalOrders > 0 ? 
-        (shop.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
+        (statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
       
-      // 计算每个状态的佣金
-      const statusCommission = {};
-      let totalCommission = 0;
+      // 计算退款率
+      const completedOrders = statusCounts['订单结算'] + statusCounts['订单退货退款'];
+      const completedRefundRate = completedOrders > 0 ? 
+        (statusCounts['订单退货退款'] / completedOrders) * 100 : 0;
+      const totalRefundRate = totalOrders > 0 ? 
+        (statusCounts['订单退货退款'] / totalOrders) * 100 : 0;
       
-      // 遍历订单数据计算每个状态的佣金
-      this.orders.forEach(order => {
-        if (order.shopName === shop.shopName) {
-          statusCommission[order.orderStatus] = (statusCommission[order.orderStatus] || 0) + order.commissionTotal;
-          totalCommission += order.commissionTotal;
-        }
-      });
+      // 计算平均佣金率
+      const averageCommissionRate = filteredOrders.length > 0 ? 
+        (commissionRateSum / filteredOrders.length) : 0;
       
       // 显示佣金数据
       const paidCommission = statusCommission['订单付款'] || 0;
@@ -454,36 +501,36 @@ class OrderManager {
         shop.shopName,
         `<div class="order-status-cell">
            <div class="order-status-main">
-             <span class="order-count">${shop.statusCounts['订单付款']}</span> 
+             <span class="order-count">${statusCounts['订单付款']}</span> 
              <span class="order-percent">(${paidPercent}%)</span>
            </div>
            <span class="order-commission">佣金: ¥${paidCommission.toFixed(2)}</span>
          </div>`,
         `<div class="order-status-cell">
            <div class="order-status-main">
-             <span class="order-count">${shop.statusCounts['订单收货']}</span> 
+             <span class="order-count">${statusCounts['订单收货']}</span> 
              <span class="order-percent">(${receivedPercent}%)</span>
            </div>
            <span class="order-commission">佣金: ¥${receivedCommission.toFixed(2)}</span>
          </div>`,
         `<div class="order-status-cell">
            <div class="order-status-main">
-             <span class="order-count">${shop.statusCounts['订单退货退款']}</span> 
+             <span class="order-count">${statusCounts['订单退货退款']}</span> 
              <span class="order-percent">(${refundedPercent}%)</span>
            </div>
            <span class="order-commission">佣金: ¥${refundedCommission.toFixed(2)}</span>
          </div>`,
         `<div class="order-status-cell">
            <div class="order-status-main">
-             <span class="order-count">${shop.statusCounts['订单结算']}</span> 
+             <span class="order-count">${statusCounts['订单结算']}</span> 
              <span class="order-percent">(${settledPercent}%)</span>
            </div>
            <span class="order-commission">佣金: ¥${settledCommission.toFixed(2)}</span>
          </div>`,
-        shop.totalDealAmount,
-        shop.averageCommissionRate,
-        shop.completedRefundRate,
-        shop.totalRefundRate,
+        totalDealAmount,
+        averageCommissionRate,
+        completedRefundRate,
+        totalRefundRate,
         `<button class="btn btn-sm btn-primary shop-detail-btn" data-shop="${shop.shopName}">详情</button>`
       ]).draw(false);
     });
@@ -493,6 +540,69 @@ class OrderManager {
     
     // 添加店铺详情按钮事件
     this.addShopDetailButtonEvents();
+  }
+  
+  // 创建流量来源切换按钮
+  createTrafficSourceToggle() {
+    // 检查是否已经创建了切换按钮
+    let toggleContainer = document.getElementById('trafficSourceToggle');
+    
+    if (!toggleContainer) {
+      // 获取店铺表格卡片和切换按钮容器
+      const toggleContainerParent = document.getElementById('trafficSourceToggleContainer');
+      if (!toggleContainerParent) {
+        console.error('找不到流量来源切换按钮容器');
+        return;
+      }
+      
+      // 创建切换按钮容器
+      toggleContainer = document.createElement('div');
+      toggleContainer.id = 'trafficSourceToggle';
+      toggleContainer.className = 'btn-group';
+      toggleContainer.setAttribute('role', 'group');
+      toggleContainer.setAttribute('aria-label', '流量来源筛选');
+      
+      // 创建三个按钮
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'btn btn-primary active';
+      allBtn.dataset.filter = 'all';
+      allBtn.textContent = '全部';
+      
+      const liveBtn = document.createElement('button');
+      liveBtn.type = 'button';
+      liveBtn.className = 'btn btn-outline-primary';
+      liveBtn.dataset.filter = 'live';
+      liveBtn.textContent = '直播';
+      
+      const showcaseBtn = document.createElement('button');
+      showcaseBtn.type = 'button';
+      showcaseBtn.className = 'btn btn-outline-primary';
+      showcaseBtn.dataset.filter = 'showcase';
+      showcaseBtn.textContent = '橱窗';
+      
+      // 添加按钮到容器
+      toggleContainer.appendChild(allBtn);
+      toggleContainer.appendChild(liveBtn);
+      toggleContainer.appendChild(showcaseBtn);
+      
+      // 将切换按钮容器添加到预定义的容器中
+      toggleContainerParent.appendChild(toggleContainer);
+      
+      // 添加点击事件
+      toggleContainer.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+          // 更新按钮状态
+          toggleContainer.querySelectorAll('button').forEach(btn => {
+            btn.className = 'btn btn-outline-primary';
+          });
+          e.target.className = 'btn btn-primary active';
+          
+          // 根据选中的筛选条件重新显示数据
+          this.displayShopTable(this.summary.shopSummary, e.target.dataset.filter);
+        }
+      });
+    }
   }
   
   // 添加店铺详情按钮事件
