@@ -199,8 +199,48 @@
     .order-commission {
       font-size: 12px;
       color: #1890ff;
-      margin-top: 2px;
-      display: block;
+    }
+    /* 成交额明细列的样式 */
+    .deal-amount-detail {
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+    }
+    .deal-amount-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .deal-amount-label {
+      font-size: 12px;
+      color: #666;
+      margin-right: 8px;
+    }
+    .deal-amount-value {
+      font-weight: bold;
+    }
+    .deal-amount-bar {
+      height: 6px;
+      border-radius: 3px;
+      margin-top: 4px;
+      background-color: #f0f0f0;
+      position: relative;
+      overflow: hidden;
+    }
+    .deal-amount-bar-refund {
+      position: absolute;
+      height: 100%;
+      background-color: #d9534f;
+      left: 0;
+      top: 0;
+    }
+    .deal-amount-bar-net {
+      position: absolute;
+      height: 100%;
+      background-color: #5cb85c;
+      left: 0;
+      top: 0;
     }
     /* 状态卡片详情样式 */
     .status-details {
@@ -741,11 +781,9 @@
                     <th>收货订单数</th>
                     <th>退货退款订单数</th>
                     <th>结算订单数</th>
-                    <th>日总成交额</th>
-                    <th>退款订单金额</th>
-                    <th>日总佣金</th>
-                    <th>日平均佣金率</th>
-                    <th>日退货率</th>
+                    <th>成交额明细</th>
+                    <th>佣金情况</th>
+                    <th>退货率</th>
                     <th>退款金额率</th>
                   </tr>
                 </thead>

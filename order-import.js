@@ -960,21 +960,81 @@ class OrderManager {
             }
           },
           {
-            targets: [6, 7, 8], // 交易额、退款金额和佣金列
-            render: function(data, type) {
+            targets: [6], // 成交额明细列
+            render: function(data, type, row) {
               if (type === 'sort' || type === 'type') {
-                return parseFloat(data);
+                // 返回纯成交额作为排序依据
+                const dealAmount = parseFloat(data.totalDealAmount);
+                const refundAmount = parseFloat(data.refundAmount);
+                return dealAmount - refundAmount;
               }
-              return `¥${parseFloat(data).toFixed(2)}`;
+              
+              // 计算数值和百分比
+              const dealAmount = parseFloat(data.totalDealAmount);
+              const refundAmount = parseFloat(data.refundAmount);
+              const netAmount = dealAmount - refundAmount;
+              const refundPercent = dealAmount > 0 ? (refundAmount / dealAmount * 100).toFixed(1) : '0.0';
+              const netPercent = dealAmount > 0 ? (netAmount / dealAmount * 100).toFixed(1) : '0.0';
+              
+              // 计算进度条百分比
+              const refundBarWidth = Math.min(parseFloat(refundPercent), 100);
+              const netBarWidth = Math.min(parseFloat(netPercent), 100);
+              
+              // 创建可视化的成交额明细
+              return `
+                <div class="deal-amount-detail">
+                  <div class="deal-amount-row">
+                    <div class="deal-amount-label">总成交额:</div>
+                    <div class="deal-amount-value" style="color: #f0ad4e;">¥${dealAmount.toFixed(2)}</div>
+                  </div>
+                  <div class="deal-amount-row">
+                    <div class="deal-amount-label">退款金额:</div>
+                    <div class="deal-amount-value" style="color: #d9534f;">¥${refundAmount.toFixed(2)} (${refundPercent}%)</div>
+                  </div>
+                  <div class="deal-amount-row">
+                    <div class="deal-amount-label">实际成交:</div>
+                    <div class="deal-amount-value" style="color: #5cb85c;">¥${netAmount.toFixed(2)} (${netPercent}%)</div>
+                  </div>
+                  <div class="deal-amount-bar">
+                    <div class="deal-amount-bar-refund" style="width: ${refundBarWidth}%"></div>
+                    <div class="deal-amount-bar-net" style="width: ${netBarWidth}%; left: ${refundBarWidth}%"></div>
+                  </div>
+                </div>
+              `;
             }
           },
           {
-            targets: [9, 10, 11], // 佣金率、退款率和退款金额率列
+            targets: [7], // 佣金情况列
+            render: function(data, type, row) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(row[7].totalCommission);
+              }
+              
+              // 显示格式：日总佣金(日平均佣金率)
+              const totalCommission = parseFloat(data.totalCommission);
+              const avgCommissionRate = parseFloat(data.averageCommissionRate);
+              
+              return `<span style="font-weight: bold;">¥${totalCommission.toFixed(2)} (${avgCommissionRate.toFixed(2)}%)</span>`;
+            }
+          },
+          {
+            targets: [8, 9], // 退货率和退款金额率列
             render: function(data, type) {
               if (type === 'sort' || type === 'type') {
                 return parseFloat(data);
               }
-              return `${parseFloat(data).toFixed(2)}%`;
+              
+              // 根据退款率设置颜色
+              const value = parseFloat(data);
+              let color = '#5cb85c'; // 绿色，低于60%
+              
+              if (value >= 75) {
+                color = '#d9534f'; // 红色，高于75%
+              } else if (value >= 60) {
+                color = '#f0ad4e'; // 黄色，60%-75%之间
+              }
+              
+              return `<span style="color: ${color}; font-weight: bold;">${value.toFixed(2)}%</span>`;
             }
           }
         ]
@@ -1023,10 +1083,8 @@ class OrderManager {
            </div>
            <span class="order-commission">佣金: ¥${dateData.statusCommission['订单结算'].toFixed(2)}</span>
          </div>`,
-        dateData.totalDealAmount,
-        dateData.refundAmount,
-        dateData.totalCommission,
-        dateData.averageCommissionRate,
+        { totalDealAmount: dateData.totalDealAmount, refundAmount: dateData.refundAmount },
+        { totalCommission: dateData.totalCommission, averageCommissionRate: dateData.averageCommissionRate },
         dateData.refundRate,
         dateData.refundAmountRate
       ]).draw(false);
