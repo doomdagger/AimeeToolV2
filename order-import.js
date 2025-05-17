@@ -1005,21 +1005,7 @@ class OrderManager {
             }
           },
           {
-            targets: [3], // 佣金情况列
-            render: function(data, type, row) {
-              if (type === 'sort' || type === 'type') {
-                return parseFloat(data.totalCommission);
-              }
-              
-              // 显示格式：日总佣金(日平均佣金率)
-              const totalCommission = parseFloat(data.totalCommission);
-              const avgCommissionRate = parseFloat(data.averageCommissionRate);
-              
-              return `<span style="font-weight: bold;">¥${totalCommission.toFixed(2)} (${avgCommissionRate.toFixed(2)}%)</span>`;
-            }
-          },
-          {
-            targets: [4], // 退货率列
+            targets: [3], // 退货率列
             render: function(data, type) {
               if (type === 'sort' || type === 'type') {
                 return parseFloat(data);
@@ -1039,7 +1025,7 @@ class OrderManager {
             }
           },
           {
-            targets: [5], // 退款金额率列
+            targets: [4], // 退款金额率列
             render: function(data, type) {
               if (type === 'sort' || type === 'type') {
                 return parseFloat(data);
@@ -1080,7 +1066,6 @@ class OrderManager {
         dateData.date,
         orderStatusHtml,
         { totalDealAmount: dateData.totalDealAmount, refundAmount: dateData.refundAmount },
-        { totalCommission: dateData.totalCommission, averageCommissionRate: dateData.averageCommissionRate },
         dateData.refundRate,
         dateData.refundAmountRate
       ]).draw(false);
