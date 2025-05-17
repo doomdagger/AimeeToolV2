@@ -627,17 +627,26 @@ class OrderManager {
     // 计算商品汇总
     const productSummary = this.calculateProductSummary(shopOrders);
     
+    // 计算日期汇总
+    const dateSummary = this.calculateDateSummary(shopOrders);
+    
     // 显示商品汇总表格
     this.displayProductSummaryTable(productSummary);
     
+    // 初始化日期汇总表格（但不显示）
+    this.initDateSummaryTable(dateSummary);
+    
     // 显示高退款率商品
     this.displayHighRefundProducts(productSummary);
+    
+    // 设置视图切换按钮事件
+    this.setupViewToggleButtons();
     
     // 显示店铺详情模态框
     const modal = new bootstrap.Modal(document.getElementById('shopDetailModal'));
     modal.show();
   }
-  
+
   // 计算商品汇总
   calculateProductSummary(orders) {
     const productSummary = {};
@@ -735,7 +744,7 @@ class OrderManager {
             render: function(data, type, row) {
               // 当类型为'sort'时，返回订单数量
               if (type === 'sort' || type === 'type') {
-                const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
+                const match = data ? data.match(/\<span class=\"order-count\">(\d+)\<\/span\>/) : null;
                 return match ? parseFloat(match[1]) : 0;
               }
               return data;
@@ -814,6 +823,8 @@ class OrderManager {
   }
   
   // 显示高退款率商品
+
+  // 显示高退款率商品
   displayHighRefundProducts(productSummary) {
     // 选择退款率大于或等于75%且订单数大于或等于20的商品
     const highRefundProducts = Object.values(productSummary)
@@ -841,6 +852,218 @@ class OrderManager {
       // 隐藏高退款率商品容器
       highRefundContainer.style.display = 'none';
     }
+  }
+
+  // 计算日期汇总
+  calculateDateSummary(orders) {
+    const dateSummary = {};
+    
+    orders.forEach(order => {
+      // 提取日期部分（YYYY-MM-DD）
+      // 防止orderPayTime为空的情况
+      if (!order.orderPayTime) {
+        // 如果没有支付时间，使用'未知日期'作为分组
+        order.orderPayTime = '未知日期';
+      }
+      const orderDate = order.orderPayTime.includes(' ') ? order.orderPayTime.split(' ')[0] : order.orderPayTime;
+      
+      if (!dateSummary[orderDate]) {
+        dateSummary[orderDate] = {
+          date: orderDate,
+          totalDealAmount: 0,
+          orderCount: 0,
+          commissionRateSum: 0,
+          totalCommission: 0,
+          refundAmount: 0, // 退款订单金额
+          statusCounts: {
+            '订单付款': 0,
+            '订单收货': 0,
+            '订单退货退款': 0,
+            '订单结算': 0
+          },
+          statusCommission: {
+            '订单付款': 0,
+            '订单收货': 0,
+            '订单退货退款': 0,
+            '订单结算': 0
+          }
+        };
+      }
+      
+      const dateData = dateSummary[orderDate];
+      dateData.totalDealAmount += order.dealAmount;
+      dateData.orderCount++;
+      dateData.commissionRateSum += order.commissionRate;
+      dateData.totalCommission += order.commissionTotal;
+      dateData.statusCounts[order.orderStatus]++;
+      dateData.statusCommission[order.orderStatus] += order.commissionTotal;
+      
+      // 计算退款订单金额
+      if (order.orderStatus === '订单退货退款') {
+        dateData.refundAmount += order.dealAmount;
+      }
+    });
+    
+    // 计算日期退款率、退款金额率和平均佣金率
+    Object.values(dateSummary).forEach(dateData => {
+      dateData.refundRate = dateData.orderCount > 0 ? 
+        (dateData.statusCounts['订单退货退款'] / dateData.orderCount) * 100 : 0;
+      
+      dateData.refundAmountRate = dateData.totalDealAmount > 0 ?
+        (dateData.refundAmount / dateData.totalDealAmount) * 100 : 0;
+      
+      dateData.averageCommissionRate = dateData.orderCount > 0 ? 
+        (dateData.commissionRateSum / dateData.orderCount) : 0;
+    });
+    
+    return dateSummary;
+  }
+
+  // 初始化日期汇总表格
+  initDateSummaryTable(dateSummary) {
+    // 初始化日期汇总表格
+    if (!this.dateSummaryTable) {
+      this.dateSummaryTable = $('#dateSummaryTable').DataTable({
+        responsive: true,
+        language: {
+          search: "搜索:",
+          lengthMenu: "显示 _MENU_ 条记录",
+          info: "显示第 _START_ 至 _END_ 条记录，共 _TOTAL_ 条",
+          infoEmpty: "没有记录",
+          infoFiltered: "(从 _MAX_ 条记录过滤)",
+          paginate: {
+            first: "首页",
+            last: "末页",
+            next: "下一页",
+            previous: "上一页"
+          }
+        },
+        order: [[0, 'desc']], // 默认按日期降序排列
+        dom: 'Blfrtip',
+        buttons: [
+          'copy', 'excel', 'csv', 'pdf', 'print'
+        ],
+        columnDefs: [
+          {
+            targets: '_all',
+            defaultContent: '-'
+          },
+          {
+            targets: [2, 3, 4, 5], // 订单状态列
+            render: function(data, type, row) {
+              // 当类型为'sort'时，返回订单数量
+              if (type === 'sort' || type === 'type') {
+                const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
+                return match ? parseFloat(match[1]) : 0;
+              }
+              return data;
+            }
+          },
+          {
+            targets: [6, 7, 8], // 交易额、退款金额和佣金列
+            render: function(data, type) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(data);
+              }
+              return `¥${parseFloat(data).toFixed(2)}`;
+            }
+          },
+          {
+            targets: [9, 10, 11], // 佣金率、退款率和退款金额率列
+            render: function(data, type) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(data);
+              }
+              return `${parseFloat(data).toFixed(2)}%`;
+            }
+          }
+        ]
+      });
+    } else {
+      this.dateSummaryTable.clear();
+    }
+    
+    // 添加日期汇总数据
+    Object.values(dateSummary).forEach(dateData => {
+      // 计算订单状态百分比
+      const totalOrders = dateData.orderCount;
+      const paidPercent = totalOrders > 0 ? (dateData.statusCounts['订单付款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const receivedPercent = totalOrders > 0 ? (dateData.statusCounts['订单收货'] / totalOrders * 100).toFixed(1) : '0.0';
+      const refundedPercent = totalOrders > 0 ? (dateData.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
+      const settledPercent = totalOrders > 0 ? (dateData.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
+      
+      this.dateSummaryTable.row.add([
+        dateData.date,
+        totalOrders,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${dateData.statusCounts['订单付款']}</span> 
+             <span class="order-percent">(${paidPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单付款'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${dateData.statusCounts['订单收货']}</span> 
+             <span class="order-percent">(${receivedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单收货'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${dateData.statusCounts['订单退货退款']}</span> 
+             <span class="order-percent">(${refundedPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单退货退款'].toFixed(2)}</span>
+         </div>`,
+        `<div class="order-status-cell">
+           <div class="order-status-main">
+             <span class="order-count">${dateData.statusCounts['订单结算']}</span> 
+             <span class="order-percent">(${settledPercent}%)</span>
+           </div>
+           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单结算'].toFixed(2)}</span>
+         </div>`,
+        dateData.totalDealAmount,
+        dateData.refundAmount,
+        dateData.totalCommission,
+        dateData.averageCommissionRate,
+        dateData.refundRate,
+        dateData.refundAmountRate
+      ]).draw(false);
+    });
+  }
+  // 设置视图切换按钮事件
+  setupViewToggleButtons() {
+    const productViewBtn = document.getElementById('productViewBtn');
+    const dateViewBtn = document.getElementById('dateViewBtn');
+    const productSummaryView = document.getElementById('productSummaryView');
+    const dateSummaryView = document.getElementById('dateSummaryView');
+    
+    // 按商品汇总按钮点击事件
+    productViewBtn.addEventListener('click', () => {
+      productViewBtn.classList.add('active');
+      dateViewBtn.classList.remove('active');
+      productSummaryView.style.display = 'block';
+      dateSummaryView.style.display = 'none';
+      
+      // 重新绘制表格以确保布局正确
+      if (this.productSummaryTable) {
+        this.productSummaryTable.columns.adjust().draw();
+      }
+    });
+    
+    // 按日期汇总按钮点击事件
+    dateViewBtn.addEventListener('click', () => {
+      dateViewBtn.classList.add('active');
+      productViewBtn.classList.remove('active');
+      dateSummaryView.style.display = 'block';
+      productSummaryView.style.display = 'none';
+      
+      // 重新绘制表格以确保布局正确
+      if (this.dateSummaryTable) {
+        this.dateSummaryTable.columns.adjust().draw();
+      }
+    });
   }
   
   // 为表格添加过滤功能
