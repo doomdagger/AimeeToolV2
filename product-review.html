@@ -242,6 +242,67 @@
       left: 0;
       top: 0;
     }
+    
+    /* 订单情况列的样式 */
+    .order-status-detail {
+      display: flex;
+      flex-direction: column;
+      min-width: 220px;
+    }
+    
+    .order-status-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    
+    .order-status-label {
+      font-size: 12px;
+      color: #666;
+      margin-right: 8px;
+    }
+    
+    .order-status-value {
+      font-weight: bold;
+    }
+    
+    .order-status-commission {
+      font-size: 11px;
+      margin-left: 5px;
+    }
+    
+    .order-status-bar {
+      height: 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+      background-color: #f0f0f0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .order-status-segment {
+      position: absolute;
+      height: 100%;
+      top: 0;
+    }
+    
+    .order-status-paid {
+      background-color: #f0ad4e; /* 黄色，付款订单 */
+      left: 0;
+    }
+    
+    .order-status-received {
+      background-color: #5bc0de; /* 蓝色，收货订单 */
+    }
+    
+    .order-status-refunded {
+      background-color: #d9534f; /* 红色，退款订单 */
+    }
+    
+    .order-status-settled {
+      background-color: #5cb85c; /* 绿色，结算订单 */
+    }
     /* 状态卡片详情样式 */
     .status-details {
       border-top: 1px solid rgba(0,0,0,0.1);
@@ -776,11 +837,7 @@
                 <thead>
                   <tr>
                     <th>日期</th>
-                    <th>订单总数</th>
-                    <th>付款订单数</th>
-                    <th>收货订单数</th>
-                    <th>退货退款订单数</th>
-                    <th>结算订单数</th>
+                    <th>订单情况</th>
                     <th>成交额明细</th>
                     <th>佣金情况</th>
                     <th>退货率</th>

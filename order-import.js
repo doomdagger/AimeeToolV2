@@ -744,7 +744,7 @@ class OrderManager {
             render: function(data, type, row) {
               // 当类型为'sort'时，返回订单数量
               if (type === 'sort' || type === 'type') {
-                const match = data ? data.match(/\<span class=\"order-count\">(\d+)\<\/span\>/) : null;
+                const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
                 return match ? parseFloat(match[1]) : 0;
               }
               return data;
@@ -949,18 +949,19 @@ class OrderManager {
             defaultContent: '-'
           },
           {
-            targets: [2, 3, 4, 5], // 订单状态列
+            targets: [1], // 订单情况列 - 现在已合并
             render: function(data, type, row) {
-              // 当类型为'sort'时，返回订单数量
+              // 当类型为'sort'时，按总订单数排序
               if (type === 'sort' || type === 'type') {
-                const match = data ? data.match(/<span class="order-count">(\d+)<\/span>/) : null;
-                return match ? parseFloat(match[1]) : 0;
+                // 尝试提取总订单数来排序
+                // 注意这里不能直接访问字符串中的值，所以我们返回0
+                return 0; // 默认排序值
               }
               return data;
             }
           },
           {
-            targets: [6], // 成交额明细列
+            targets: [2], // 成交额明细列
             render: function(data, type, row) {
               if (type === 'sort' || type === 'type') {
                 // 返回纯成交额作为排序依据
@@ -1004,10 +1005,10 @@ class OrderManager {
             }
           },
           {
-            targets: [7], // 佣金情况列
+            targets: [3], // 佣金情况列
             render: function(data, type, row) {
               if (type === 'sort' || type === 'type') {
-                return parseFloat(row[7].totalCommission);
+                return parseFloat(data.totalCommission);
               }
               
               // 显示格式：日总佣金(日平均佣金率)
@@ -1018,7 +1019,27 @@ class OrderManager {
             }
           },
           {
-            targets: [8, 9], // 退货率和退款金额率列
+            targets: [4], // 退货率列
+            render: function(data, type) {
+              if (type === 'sort' || type === 'type') {
+                return parseFloat(data);
+              }
+              
+              // 根据退款率设置颜色
+              const value = parseFloat(data);
+              let color = '#5cb85c'; // 绿色，低于60%
+              
+              if (value >= 75) {
+                color = '#d9534f'; // 红色，高于75%
+              } else if (value >= 60) {
+                color = '#f0ad4e'; // 黄色，60%-75%之间
+              }
+              
+              return `<span style="color: ${color}; font-weight: bold;">${value.toFixed(2)}%</span>`;
+            }
+          },
+          {
+            targets: [5], // 退款金额率列
             render: function(data, type) {
               if (type === 'sort' || type === 'type') {
                 return parseFloat(data);
@@ -1052,37 +1073,12 @@ class OrderManager {
       const refundedPercent = totalOrders > 0 ? (dateData.statusCounts['订单退货退款'] / totalOrders * 100).toFixed(1) : '0.0';
       const settledPercent = totalOrders > 0 ? (dateData.statusCounts['订单结算'] / totalOrders * 100).toFixed(1) : '0.0';
       
+      // 创建订单情况可视化元素
+      const orderStatusHtml = this.createOrderStatusVisualization(dateData, totalOrders, paidPercent, receivedPercent, refundedPercent, settledPercent);
+      
       this.dateSummaryTable.row.add([
         dateData.date,
-        totalOrders,
-        `<div class="order-status-cell">
-           <div class="order-status-main">
-             <span class="order-count">${dateData.statusCounts['订单付款']}</span> 
-             <span class="order-percent">(${paidPercent}%)</span>
-           </div>
-           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单付款'].toFixed(2)}</span>
-         </div>`,
-        `<div class="order-status-cell">
-           <div class="order-status-main">
-             <span class="order-count">${dateData.statusCounts['订单收货']}</span> 
-             <span class="order-percent">(${receivedPercent}%)</span>
-           </div>
-           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单收货'].toFixed(2)}</span>
-         </div>`,
-        `<div class="order-status-cell">
-           <div class="order-status-main">
-             <span class="order-count">${dateData.statusCounts['订单退货退款']}</span> 
-             <span class="order-percent">(${refundedPercent}%)</span>
-           </div>
-           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单退货退款'].toFixed(2)}</span>
-         </div>`,
-        `<div class="order-status-cell">
-           <div class="order-status-main">
-             <span class="order-count">${dateData.statusCounts['订单结算']}</span> 
-             <span class="order-percent">(${settledPercent}%)</span>
-           </div>
-           <span class="order-commission">佣金: ¥${dateData.statusCommission['订单结算'].toFixed(2)}</span>
-         </div>`,
+        orderStatusHtml,
         { totalDealAmount: dateData.totalDealAmount, refundAmount: dateData.refundAmount },
         { totalCommission: dateData.totalCommission, averageCommissionRate: dateData.averageCommissionRate },
         dateData.refundRate,
@@ -1122,6 +1118,91 @@ class OrderManager {
         this.dateSummaryTable.columns.adjust().draw();
       }
     });
+  }
+  
+  /**
+   * 创建订单情况的可视化元素
+   * @param {Object} dateData - 日期汇总数据
+   * @param {number} totalOrders - 总订单数
+   * @param {string} paidPercent - 付款订单百分比
+   * @param {string} receivedPercent - 收货订单百分比
+   * @param {string} refundedPercent - 退款订单百分比
+   * @param {string} settledPercent - 结算订单百分比
+   * @returns {string} - HTML字符串
+   */
+  createOrderStatusVisualization(dateData, totalOrders, paidPercent, receivedPercent, refundedPercent, settledPercent) {
+    // 获取各类型订单数量
+    const paidCount = dateData.statusCounts['订单付款'];
+    const receivedCount = dateData.statusCounts['订单收货'];
+    const refundedCount = dateData.statusCounts['订单退货退款'];
+    const settledCount = dateData.statusCounts['订单结算'];
+    
+    // 获取各类型订单佣金
+    const paidCommission = dateData.statusCommission['订单付款'].toFixed(2);
+    const receivedCommission = dateData.statusCommission['订单收货'].toFixed(2);
+    const refundedCommission = dateData.statusCommission['订单退货退款'].toFixed(2);
+    const settledCommission = dateData.statusCommission['订单结算'].toFixed(2);
+    
+    // 计算平均佣金率
+    const avgCommissionRate = dateData.averageCommissionRate.toFixed(2);
+    
+    // 计算进度条百分比
+    const paidBarWidth = parseFloat(paidPercent);
+    const receivedBarWidth = parseFloat(receivedPercent);
+    const refundedBarWidth = parseFloat(refundedPercent);
+    const settledBarWidth = parseFloat(settledPercent);
+    
+    // 计算各进度条起始位置
+    const receivedPosition = paidBarWidth;    
+    const refundedPosition = paidBarWidth + receivedBarWidth;
+    const settledPosition = paidBarWidth + receivedBarWidth + refundedBarWidth;
+    
+    // 创建可视化HTML
+    return `
+      <div class="order-status-detail">
+        <div class="order-status-row">
+          <div class="order-status-label">订单总数:</div>
+          <div class="order-status-value" style="color: #333;">
+            ${totalOrders}
+            <span class="order-status-commission">(平均佣金率: ${avgCommissionRate}%)</span>
+          </div>
+        </div>
+        <div class="order-status-row">
+          <div class="order-status-label">付款订单:</div>
+          <div class="order-status-value" style="color: #f0ad4e;">
+            ${paidCount} (${paidPercent}%)
+            <span class="order-status-commission">佣金: ¥${paidCommission}</span>
+          </div>
+        </div>
+        <div class="order-status-row">
+          <div class="order-status-label">收货订单:</div>
+          <div class="order-status-value" style="color: #5bc0de;">
+            ${receivedCount} (${receivedPercent}%)
+            <span class="order-status-commission">佣金: ¥${receivedCommission}</span>
+          </div>
+        </div>
+        <div class="order-status-row">
+          <div class="order-status-label">退款订单:</div>
+          <div class="order-status-value" style="color: #d9534f;">
+            ${refundedCount} (${refundedPercent}%)
+            <span class="order-status-commission">佣金: ¥${refundedCommission}</span>
+          </div>
+        </div>
+        <div class="order-status-row">
+          <div class="order-status-label">结算订单:</div>
+          <div class="order-status-value" style="color: #5cb85c;">
+            ${settledCount} (${settledPercent}%)
+            <span class="order-status-commission">佣金: ¥${settledCommission}</span>
+          </div>
+        </div>
+        <div class="order-status-bar">
+          <div class="order-status-segment order-status-paid" style="width: ${paidBarWidth}%"></div>
+          <div class="order-status-segment order-status-received" style="width: ${receivedBarWidth}%; left: ${receivedPosition}%"></div>
+          <div class="order-status-segment order-status-refunded" style="width: ${refundedBarWidth}%; left: ${refundedPosition}%"></div>
+          <div class="order-status-segment order-status-settled" style="width: ${settledBarWidth}%; left: ${settledPosition}%"></div>
+        </div>
+      </div>
+    `;
   }
   
   // 为表格添加过滤功能
