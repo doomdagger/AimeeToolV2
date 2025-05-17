@@ -938,7 +938,7 @@ class OrderManager {
             previous: "上一页"
           }
         },
-        order: [[0, 'desc']], // 默认按日期降序排列
+        order: [[0, 'asc']], // 默认按日期升序排列
         dom: 'Blfrtip',
         buttons: [
           'copy', 'excel', 'csv', 'pdf', 'print'
@@ -946,7 +946,8 @@ class OrderManager {
         columnDefs: [
           {
             targets: '_all',
-            defaultContent: '-'
+            defaultContent: '-',
+            orderable: false // 禁用所有列的排序
           },
           {
             targets: [1], // 订单情况列 - 现在已合并
@@ -985,15 +986,15 @@ class OrderManager {
               return `
                 <div class="deal-amount-detail">
                   <div class="deal-amount-row">
-                    <div class="deal-amount-label">总成交额:</div>
+                    <div class="deal-amount-label" style="color: #f0ad4e;">总成交额:</div>
                     <div class="deal-amount-value" style="color: #f0ad4e;">¥${dealAmount.toFixed(2)}</div>
                   </div>
                   <div class="deal-amount-row">
-                    <div class="deal-amount-label">退款金额:</div>
+                    <div class="deal-amount-label" style="color: #d9534f;">退款金额:</div>
                     <div class="deal-amount-value" style="color: #d9534f;">¥${refundAmount.toFixed(2)} (${refundPercent}%)</div>
                   </div>
                   <div class="deal-amount-row">
-                    <div class="deal-amount-label">实际成交:</div>
+                    <div class="deal-amount-label" style="color: #5cb85c;">实际成交:</div>
                     <div class="deal-amount-value" style="color: #5cb85c;">¥${netAmount.toFixed(2)} (${netPercent}%)</div>
                   </div>
                   <div class="deal-amount-bar">
@@ -1146,38 +1147,38 @@ class OrderManager {
     return `
       <div class="order-status-detail">
         <div class="order-status-row">
-          <div class="order-status-label">订单总数:</div>
+          <div class="order-status-label" style="color: #333;">订单总数:</div>
           <div class="order-status-value" style="color: #333;">
             ${totalOrders}
-            <span class="order-status-commission">(平均佣金率: ${avgCommissionRate}%)</span>
+            <span class="order-status-commission" style="color: #1890ff;">(平均佣金率: ${avgCommissionRate}%)</span>
           </div>
         </div>
         <div class="order-status-row">
-          <div class="order-status-label">付款订单:</div>
+          <div class="order-status-label" style="color: #f0ad4e;">付款订单:</div>
           <div class="order-status-value" style="color: #f0ad4e;">
             ${paidCount} (${paidPercent}%)
-            <span class="order-status-commission">佣金: ¥${paidCommission}</span>
+            <span class="order-status-commission" style="color: #f0ad4e;">佣金: ¥${paidCommission}</span>
           </div>
         </div>
         <div class="order-status-row">
-          <div class="order-status-label">收货订单:</div>
+          <div class="order-status-label" style="color: #5bc0de;">收货订单:</div>
           <div class="order-status-value" style="color: #5bc0de;">
             ${receivedCount} (${receivedPercent}%)
-            <span class="order-status-commission">佣金: ¥${receivedCommission}</span>
+            <span class="order-status-commission" style="color: #5bc0de;">佣金: ¥${receivedCommission}</span>
           </div>
         </div>
         <div class="order-status-row">
-          <div class="order-status-label">退款订单:</div>
+          <div class="order-status-label" style="color: #d9534f;">退款订单:</div>
           <div class="order-status-value" style="color: #d9534f;">
             ${refundedCount} (${refundedPercent}%)
-            <span class="order-status-commission">佣金: ¥${refundedCommission}</span>
+            <span class="order-status-commission" style="color: #d9534f;">佣金: ¥${refundedCommission}</span>
           </div>
         </div>
         <div class="order-status-row">
-          <div class="order-status-label">结算订单:</div>
+          <div class="order-status-label" style="color: #5cb85c;">结算订单:</div>
           <div class="order-status-value" style="color: #5cb85c;">
             ${settledCount} (${settledPercent}%)
-            <span class="order-status-commission">佣金: ¥${settledCommission}</span>
+            <span class="order-status-commission" style="color: #5cb85c;">佣金: ¥${settledCommission}</span>
           </div>
         </div>
         <div class="order-status-bar">
