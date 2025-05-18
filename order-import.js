@@ -8,6 +8,7 @@ class OrderManager {
     this.orders = [];
     this.productDb = new ProductDatabase(); // 使用现有的商品数据库
     this.statusChart = null;
+    this.currSelectedTrafficSource = 'all';
   }
 
   // 初始化
@@ -394,6 +395,7 @@ class OrderManager {
         order.shopName,
         order.orderStatus,
         `¥${order.dealAmount.toFixed(2)}`,
+        order.productNum,
         `${order.commissionRate.toFixed(2)}%`,
         `¥${order.commissionTotal.toFixed(2)}`,
         `¥${order.estimatedCommission.toFixed(2)}`,
@@ -417,6 +419,8 @@ class OrderManager {
     // 创建或更新流量来源切换按钮
     this.createTrafficSourceToggle();
     
+    this.currSelectedTrafficSource = trafficSourceFilter;
+
     // 添加新数据
     Object.values(shopSummary).forEach(shop => {
       // 根据流量来源筛选订单
@@ -622,8 +626,19 @@ class OrderManager {
     document.getElementById('modalShopName').textContent = shopName;
     
     // 获取店铺订单
-    const shopOrders = this.orders.filter(order => order.shopName === shopName);
-    
+    // 根据流量来源筛选订单
+    const trafficSourceFilter = this.currSelectedTrafficSource;
+    const shopOrders = this.orders.filter(order => {
+      if (trafficSourceFilter === 'all') {
+        return order.shopName === shopName;
+      } else if (trafficSourceFilter === 'live') {
+        return order.shopName === shopName && order.trafficSource === '直播';
+      } else if (trafficSourceFilter === 'showcase') {
+        return order.shopName === shopName && order.trafficSource === '橱窗';
+      }
+      return false;
+    });
+
     // 计算商品汇总
     const productSummary = this.calculateProductSummary(shopOrders);
     
@@ -1385,6 +1400,7 @@ class OrderExcelParser {
       shopName: ["店铺名称"],
       orderStatus: ["订单状态"],
       dealAmount: ["成交金额"],
+      productNum: ["商品数量"],
       commissionRate: ["佣金率"],
       commissionTotal: ["总佣金收入"],
       estimatedCommission: ["预估佣金收入-达人"],
@@ -1444,6 +1460,7 @@ class OrderExcelParser {
         shopName: '', 
         orderStatus: '',
         dealAmount: 0,
+        productNum: 0,
         commissionRate: 0,
         commissionTotal: 0,
         estimatedCommission: 0,
@@ -1464,6 +1481,8 @@ class OrderExcelParser {
             // 处理百分比
             const cleanValue = String(value).replace('%', '');
             order[field] = parseFloat(cleanValue) || 0;
+          } else if (field === 'productNum') {
+            order[field] = parseInt(value) || 0;
           } else {
             // 其他字段直接赋值
             order[field] = String(value).trim();
