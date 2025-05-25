@@ -39,7 +39,7 @@ function createControlAssistantUI() {
   // Create toggle button
   const toggleButton = document.createElement('div');
   toggleButton.className = 'control-assistant-toggle';
-  toggleButton.innerHTML = '中控<br>助手';
+  toggleButton.innerHTML = '中控助手';
   toggleButton.title = '打开/关闭中控助手';
   document.body.appendChild(toggleButton);
   
@@ -102,8 +102,8 @@ let explainInterval = 5; // Default interval in seconds
 // Product ID map to track products by their IDs
 let productIdMap = {}; // Format: { productId: { index, button } }
 
-// Store pinned products (products being auto-explained)
-let pinnedProducts = {}; // Format: { productId: { title, price, imageUrl, originalButton } }
+// Store the currently pinned product (only one product can be auto-explained at a time)
+let pinnedProduct = null; // Format: { productId, title, price, imageUrl, originalButton }
 
 // Function to save settings
 function saveSettings() {
@@ -141,8 +141,8 @@ function stopAutoExplain(productId) {
     clearInterval(explainIntervals[productId].interval);
     explainIntervals[productId] = null;
     
-    // Remove from pinned products
-    removeFromPinnedProducts(productId);
+    // Clear the pinned product
+    clearPinnedProduct();
     
     // Update the button in the main list if it exists
     const mainListButton = document.querySelector(`#controlAssistantGoodsList [data-product-id="${productId}"] .control-assistant-explain-btn`);
@@ -162,6 +162,13 @@ function toggleProductAutoExplain(productId, index, button) {
     // Stop auto-explain
     stopAutoExplain(productId);
   } else {
+    // Stop any existing auto-explain for other products first
+    Object.keys(explainIntervals).forEach(id => {
+      if (explainIntervals[id] && id !== productId) {
+        stopAutoExplain(id);
+      }
+    });
+    
     // Get product data
     const goodsItem = button.closest('.control-assistant-goods-item');
     if (!goodsItem) return;
@@ -176,40 +183,46 @@ function toggleProductAutoExplain(productId, index, button) {
     button.textContent = '讲解中...';
     button.classList.add('active');
     
-    // Add to pinned products
-    addToPinnedProducts(productId, title, price, imageUrl, explainButtons[index]);
+    // Set as the pinned product
+    setPinnedProduct(productId, title, price, imageUrl, explainButtons[index]);
   }
 }
 
-// Function to add a product to the pinned section
-function addToPinnedProducts(productId, title, price, imageUrl, originalButton) {
-  console.log(`Adding product ${productId} to pinned products`);
+// Function to set the pinned product (only one at a time)
+function setPinnedProduct(productId, title, price, imageUrl, originalButton) {
+  console.log(`Setting pinned product to ${productId}`);
+  
+  // If there's already a pinned product, stop its auto-explain first
+  if (pinnedProduct) {
+    stopAutoExplain(pinnedProduct.productId);
+  }
   
   // Store the product data
-  pinnedProducts[productId] = {
+  pinnedProduct = {
+    productId,
     title,
     price,
     imageUrl,
     originalButton
   };
   
-  // Update the pinned products display
-  updatePinnedProductsDisplay();
+  // Update the pinned product display
+  updatePinnedProductDisplay();
 }
 
-// Function to remove a product from the pinned section
-function removeFromPinnedProducts(productId) {
-  console.log(`Removing product ${productId} from pinned products`);
+// Function to clear the pinned product
+function clearPinnedProduct() {
+  console.log('Clearing pinned product');
   
-  // Remove the product data
-  delete pinnedProducts[productId];
+  // Clear the product data
+  pinnedProduct = null;
   
-  // Update the pinned products display
-  updatePinnedProductsDisplay();
+  // Update the pinned product display
+  updatePinnedProductDisplay();
 }
 
-// Function to update the pinned products display
-function updatePinnedProductsDisplay() {
+// Function to update the pinned product display
+function updatePinnedProductDisplay() {
   const pinnedList = document.getElementById('pinnedProductsList');
   const pinnedCount = document.getElementById('pinnedProductsCount');
   
@@ -218,47 +231,43 @@ function updatePinnedProductsDisplay() {
   // Clear the list
   pinnedList.innerHTML = '';
   
-  // Count active pinned products
-  const activeProductIds = Object.keys(pinnedProducts);
-  pinnedCount.textContent = activeProductIds.length;
+  // Update the count (0 or 1)
+  pinnedCount.textContent = pinnedProduct ? '1' : '0';
   
-  // If no pinned products, show a message
-  if (activeProductIds.length === 0) {
+  // If no pinned product, show a message
+  if (!pinnedProduct) {
     pinnedList.innerHTML = '<li style="text-align: center; padding: 10px; color: #999;">没有正在讲解的商品</li>';
     return;
   }
   
-  // Add each pinned product to the list
-  activeProductIds.forEach(productId => {
-    const product = pinnedProducts[productId];
-    
-    const listItem = document.createElement('li');
-    listItem.className = 'control-assistant-goods-item';
-    listItem.setAttribute('data-product-id', productId);
-    
-    listItem.innerHTML = `
-      <img class="control-assistant-goods-image" src="${product.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iMjUiIHk9IjI1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5OTkiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='}" loading="lazy" alt="${product.title}">
-      <div class="control-assistant-goods-info">
-        <h3 class="control-assistant-goods-title">${product.title}</h3>
-        <div class="control-assistant-goods-action-row">
-          <div class="control-assistant-goods-price">${product.price}</div>
-          <button class="control-assistant-btn control-assistant-btn-primary control-assistant-explain-btn active" data-product-id="${productId}">
-            取消讲解
-          </button>
-        </div>
-      </div>
-    `;
-    
-    pinnedList.appendChild(listItem);
-  });
+  // Add the pinned product to the list
+  const listItem = document.createElement('li');
+  listItem.className = 'control-assistant-goods-item';
+  listItem.setAttribute('data-product-id', pinnedProduct.productId);
   
-  // Add event listeners to the pinned products' buttons
-  pinnedList.querySelectorAll('.control-assistant-explain-btn').forEach(button => {
+  listItem.innerHTML = `
+    <img class="control-assistant-goods-image" src="${pinnedProduct.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iMjUiIHk9IjI1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5OTkiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='}" loading="lazy" alt="${pinnedProduct.title}">
+    <div class="control-assistant-goods-info">
+      <h3 class="control-assistant-goods-title">${pinnedProduct.title}</h3>
+      <div class="control-assistant-goods-action-row">
+        <div class="control-assistant-goods-price">${pinnedProduct.price}</div>
+        <button class="control-assistant-btn control-assistant-btn-primary control-assistant-explain-btn active" data-product-id="${pinnedProduct.productId}">
+          取消讲解
+        </button>
+      </div>
+    </div>
+  `;
+  
+  pinnedList.appendChild(listItem);
+  
+  // Add event listener to the pinned product's button
+  const button = listItem.querySelector('.control-assistant-explain-btn');
+  if (button) {
     button.addEventListener('click', function() {
       const productId = this.getAttribute('data-product-id');
       stopAutoExplain(productId);
     });
-  });
+  }
 }
 
 // Function to move a product to the top of our list
@@ -296,12 +305,11 @@ function startExplainInterval(productId, index, button) {
     let buttonClicked = false;
     
     // Try to use the button from pinnedProducts if available
-    const pinnedProduct = pinnedProducts[productId];
     const cachedButton = pinnedProduct ? pinnedProduct.originalButton : originalButton;
     
     try {
       console.log(`Auto-clicking explain button for product ${productId}`);
-      cachedButton.click();
+      // cachedButton.click();
       buttonClicked = true;
     } catch (e) {
       console.error('Error clicking cached button:', e);
@@ -309,7 +317,7 @@ function startExplainInterval(productId, index, button) {
       // If the cached button is no longer valid, try to find it again by index
       if (explainButtons[index]) {
         try {
-          explainButtons[index].click();
+          // explainButtons[index].click();
           buttonClicked = true;
         } catch (e2) {
           console.error('Error clicking current button:', e2);
@@ -434,6 +442,21 @@ function updateControlAssistantGoodsList(goodsItems) {
   
   // Add each goods item to our list
   Array.from(goodsItems).forEach((item, index) => {
+    // Optimize image loading
+    const imageEl = item.querySelector('img');
+    let imageUrl = '';
+    if (imageEl) {
+      // Use a smaller size image if possible by modifying the URL
+      imageUrl = imageEl.src;
+      // Remove any existing size parameters and add our own
+      imageUrl = imageUrl.replace(/~\d+x\d+\.image/, '~100x100.image');
+    }
+    
+    if (imageUrl.startsWith('data:image')) {
+      // skip this item if no image loading
+      return;
+    }
+
     // Extract the product ID from the data-rbd-draggable-id attribute
     let productId = item.getAttribute('data-rbd-draggable-id');
     if (!productId) {
@@ -466,23 +489,9 @@ function updateControlAssistantGoodsList(goodsItems) {
     
     // Get inventory, sales and conversion rate if available
     let inventory = '';
-    let sales = '';
-    let conversionRate = '';
     
     if (goodsDataDiv && goodsDataDiv.children) {
       if (goodsDataDiv.children.length > 1) inventory = goodsDataDiv.children[1].textContent.trim();
-      if (goodsDataDiv.children.length > 2) sales = goodsDataDiv.children[2].textContent.trim();
-      if (goodsDataDiv.children.length > 3) conversionRate = goodsDataDiv.children[3].textContent.trim();
-    }
-    
-    // Optimize image loading
-    const imageEl = item.querySelector('img');
-    let imageUrl = '';
-    if (imageEl) {
-      // Use a smaller size image if possible by modifying the URL
-      imageUrl = imageEl.src;
-      // Remove any existing size parameters and add our own
-      imageUrl = imageUrl.replace(/~\d+x\d+\.image/, '~100x100.image');
     }
     
     // Create a new list item
