@@ -35,6 +35,9 @@ function initControlAssistant() {
   console.log('Control Assistant: Initialized');
 }
 
+// Store the currently pinned product (only one product can be auto-explained at a time)
+let pinnedProduct = null; // Format: { productId, title, price, imageUrl, originalButton }
+
 function createControlAssistantUI() {
   // Create toggle button
   const toggleButton = document.createElement('div');
@@ -63,8 +66,10 @@ function createControlAssistantUI() {
       <div id="controlAssistantStatus" class="control-assistant-status">状态: 就绪</div>
     </div>
     <div class="control-assistant-pinned-products">
-      <h3>正在讲解的商品 (<span id="pinnedProductsCount">0</span>)</h3>
-      <ul id="pinnedProductsList" class="control-assistant-pinned-list"></ul>
+      <h3>正在讲解的商品</h3>
+      <ul id="pinnedProductsList" class="control-assistant-pinned-list">
+        <li style="text-align: center; padding: 10px; color: #999;">没有正在讲解的商品</li>
+      </ul>
     </div>
     <div class="control-assistant-goods">
       <h3>商品列表</h3>
@@ -81,6 +86,8 @@ function createControlAssistantUI() {
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener('click', saveSettings);
   }
+
+  pinnedProduct = null;
 }
 
 function toggleControlAssistantPanel() {
@@ -94,16 +101,13 @@ function toggleControlAssistantPanel() {
   }
 }
 
-// Store explain intervals for each product using product IDs
-let explainIntervals = {}; // Format: { productId: { interval, button, originalButton, productData } }
+// Store the current explain interval
+let currentExplainInterval = null; // Format: { productId, interval, button, originalButton }
 let explainButtons = [];
 let explainInterval = 5; // Default interval in seconds
 
 // Product ID map to track products by their IDs
 let productIdMap = {}; // Format: { productId: { index, button } }
-
-// Store the currently pinned product (only one product can be auto-explained at a time)
-let pinnedProduct = null; // Format: { productId, title, price, imageUrl, originalButton }
 
 // Function to save settings
 function saveSettings() {
@@ -113,13 +117,24 @@ function saveSettings() {
     if (!isNaN(newInterval) && newInterval >= 1 && newInterval <= 60) {
       explainInterval = newInterval;
       
-      // Update any active intervals
-      Object.keys(explainIntervals).forEach(index => {
-        if (explainIntervals[index]) {
-          clearInterval(explainIntervals[index].interval);
-          startExplainInterval(index);
+      // Update active interval if exists
+      if (currentExplainInterval) {
+        const { productId, button, originalButton } = currentExplainInterval;
+        clearInterval(currentExplainInterval.interval);
+        
+        // Find the index of the button in explainButtons array
+        let buttonIndex = -1;
+        for (let i = 0; i < explainButtons.length; i++) {
+          if (explainButtons[i] === originalButton) {
+            buttonIndex = i;
+            break;
+          }
         }
-      });
+        
+        if (buttonIndex !== -1) {
+          startExplainInterval(productId, buttonIndex, button);
+        }
+      }
       
       const statusEl = document.getElementById('controlAssistantStatus');
       if (statusEl) {
@@ -136,10 +151,10 @@ function saveSettings() {
 function stopAutoExplain(productId) {
   console.log(`Stopping auto-explain for product ${productId}`);
   
-  if (explainIntervals[productId]) {
+  if (currentExplainInterval && currentExplainInterval.productId === productId) {
     // Stop the interval
-    clearInterval(explainIntervals[productId].interval);
-    explainIntervals[productId] = null;
+    clearInterval(currentExplainInterval.interval);
+    currentExplainInterval = null;
     
     // Clear the pinned product
     clearPinnedProduct();
@@ -158,16 +173,14 @@ function toggleProductAutoExplain(productId, index, button) {
   console.log(`Toggling auto-explain for product ${productId}`);
   
   // Check if this product already has an interval running
-  if (explainIntervals[productId]) {
+  if (currentExplainInterval && currentExplainInterval.productId === productId) {
     // Stop auto-explain
     stopAutoExplain(productId);
   } else {
-    // Stop any existing auto-explain for other products first
-    Object.keys(explainIntervals).forEach(id => {
-      if (explainIntervals[id] && id !== productId) {
-        stopAutoExplain(id);
-      }
-    });
+    // Stop any existing auto-explain first
+    if (currentExplainInterval) {
+      stopAutoExplain(currentExplainInterval.productId);
+    }
     
     // Get product data
     const goodsItem = button.closest('.control-assistant-goods-item');
@@ -224,15 +237,11 @@ function clearPinnedProduct() {
 // Function to update the pinned product display
 function updatePinnedProductDisplay() {
   const pinnedList = document.getElementById('pinnedProductsList');
-  const pinnedCount = document.getElementById('pinnedProductsCount');
   
-  if (!pinnedList || !pinnedCount) return;
+  if (!pinnedList) return;
   
   // Clear the list
   pinnedList.innerHTML = '';
-  
-  // Update the count (0 or 1)
-  pinnedCount.textContent = pinnedProduct ? '1' : '0';
   
   // If no pinned product, show a message
   if (!pinnedProduct) {
@@ -309,7 +318,7 @@ function startExplainInterval(productId, index, button) {
     
     try {
       console.log(`Auto-clicking explain button for product ${productId}`);
-      // cachedButton.click();
+      cachedButton.click();
       buttonClicked = true;
     } catch (e) {
       console.error('Error clicking cached button:', e);
@@ -317,7 +326,7 @@ function startExplainInterval(productId, index, button) {
       // If the cached button is no longer valid, try to find it again by index
       if (explainButtons[index]) {
         try {
-          // explainButtons[index].click();
+          explainButtons[index].click();
           buttonClicked = true;
         } catch (e2) {
           console.error('Error clicking current button:', e2);
@@ -355,8 +364,9 @@ function startExplainInterval(productId, index, button) {
     }
   }, explainInterval * 1000);
   
-  // Store the interval with the product ID as the key
-  explainIntervals[productId] = {
+  // Store the current interval information
+  currentExplainInterval = {
+    productId,
     interval: intervalId,
     button: button,
     originalButton: originalButton
@@ -364,7 +374,7 @@ function startExplainInterval(productId, index, button) {
 }
 
 function fetchGoodsList() {
-  console.log('Fetching goods list...');
+  //console.log('Fetching goods list...');
   
   // Make sure our panel exists before trying to update it
   if (!document.getElementById('controlAssistantPanel')) {
@@ -407,14 +417,21 @@ function fetchGoodsList() {
   
   // Find all explain buttons - more specific selector
   explainButtons = [];
-  document.querySelectorAll('button').forEach(button => {
-    if (button.textContent.includes('\u8bb2\u89e3')) {
-      console.log('Found explain button:', button);
-      explainButtons.push(button);
-    }
+  
+  // Find all divs with class containing 'goodsAction-JcGBoH'
+  const actionDivs = document.querySelectorAll('[class*="goodsAction-JcGBoH"]');
+  
+  // Find buttons inside these divs with text content exactly equal to '讲解'
+  actionDivs.forEach(div => {
+    div.querySelectorAll('button').forEach(button => {
+      if (button.textContent.includes('讲解')) {
+        //console.log('Found explain button:', button);
+        explainButtons.push(button);
+      }
+    });
   });
   
-  console.log(`Found ${explainButtons.length} explain buttons`);
+  //console.log(`Found ${explainButtons.length} explain buttons`);
   
   // Update our UI with the goods list
   updateControlAssistantGoodsList(goodsItems);
@@ -500,7 +517,7 @@ function updateControlAssistantGoodsList(goodsItems) {
     listItem.setAttribute('data-product-id', productId);
     
     // Check if this product is already being auto-explained
-    const isAutoExplaining = explainIntervals[productId] !== undefined && explainIntervals[productId] !== null;
+    const isAutoExplaining = currentExplainInterval && currentExplainInterval.productId === productId;
     const buttonClass = isAutoExplaining ? 'control-assistant-btn control-assistant-btn-primary control-assistant-explain-btn active' : 'control-assistant-btn control-assistant-btn-primary control-assistant-explain-btn';
     const buttonText = isAutoExplaining ? '讲解中...' : '自动讲解';
     
@@ -520,8 +537,8 @@ function updateControlAssistantGoodsList(goodsItems) {
     goodsList.appendChild(listItem);
   });
   
-  // Add event listeners to the explain buttons
-  document.querySelectorAll('.control-assistant-explain-btn').forEach(button => {
+  // Add event listeners to the explain buttons - only target buttons in the main goods list
+  document.querySelectorAll('#controlAssistantGoodsList .control-assistant-explain-btn').forEach(button => {
     button.addEventListener('click', function() {
       const index = parseInt(this.getAttribute('data-index'));
       const productId = this.getAttribute('data-product-id');
@@ -561,7 +578,7 @@ function debounce(func, wait) {
 
 // Mutation observer to detect DOM changes and refresh goods list
 const observer = new MutationObserver(debounce(() => {
-  console.log('DOM changed, refreshing goods list...');
+  //console.log('DOM changed, refreshing goods list...');
   fetchGoodsList();
 }, 500));
 
