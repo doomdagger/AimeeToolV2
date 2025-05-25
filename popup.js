@@ -26,4 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 商品回顾功能无需检查room_id，直接打开
     chrome.tabs.create({ url: 'product-review.html' });
   });
+
+  document.getElementById('controlAssistant').addEventListener('click', function() {
+    // 打开中控页面
+    chrome.tabs.create({ url: 'https://buyin.jinritemai.com/dashboard/live/control' });
+  });
 });
